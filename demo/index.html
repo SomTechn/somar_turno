@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <title>Somar Turno · Demo</title>
+<meta property="og:title" content="Somar Turno · Demo">
+<meta property="og:image" content="https://somar-turno.vercel.app/assets/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/assets/img/icon.svg" type="image/svg+xml">
 <meta name="description" content="Probá Somar Turno: citas, fila y puntos para barberías, salones, estilistas y uñas.">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#16181D">
@@ -47,7 +51,7 @@ h1,h2{text-wrap:balance;letter-spacing:-.015em}
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--surface);border-bottom:1px solid var(--line)}
 .top-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px 10px}
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;letter-spacing:-.02em}
-.mark{width:26px;height:26px;border-radius:8px;background:var(--ink);display:grid;place-items:center;flex:none}
+.mark{width:26px;height:26px;display:grid;place-items:center;flex:none}.mark img{width:100%;height:100%;display:block}
 .mark svg{width:16px;height:16px}
 .demo{font-size:13px;color:var(--ink-3)}
 .roles{display:flex;gap:4px;padding-block:0 10px;overflow-x:auto;scrollbar-width:none}
@@ -216,7 +220,7 @@ th{font-size:13px;color:var(--ink-3);font-weight:600;border-top:0}
 <div id="app">
   <header class="top">
     <div class="top-row gut">
-      <div class="brand"><span class="mark"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3.5 4h9M8 4v8.5"/></svg></span>Somar Turno</div>
+      <div class="brand"><span class="mark"><img src="/assets/img/icon.svg" alt="" width="26" height="26"></span>Somar Turno</div>
       <div style="display:flex;align-items:center;gap:6px"><a class="btn s ink" href="/panel" style="min-height:32px">Para mi negocio</a><button class="btn quiet s" data-a="askReset" aria-label="Reiniciar la demo" title="Reiniciar la demo" style="padding:6px 8px">↺</button></div>
     </div>
     <div class="roles gut" role="group" aria-label="Ver la app como">
@@ -431,7 +435,7 @@ function notify(c,t,x){
   D.notifs.unshift({id:uid('x'),cli:c,t,x,leida:false});
   if(c!==D.me||!cli(c).cuenta)return;
   const el=document.getElementById('push');
-  el.innerHTML=`<span class="mark"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3.5 4h9M8 4v8.5"/></svg></span><div class="body"><div class="xs faint">Somar Turno, ahora</div><b>${esc(t)}</b><div class="sm muted">${esc(x)}</div></div>`;
+  el.innerHTML=`<span class="mark"><img src="/assets/img/icon.svg" alt="" width="26" height="26"></span><div class="body"><div class="xs faint">Somar Turno, ahora</div><b>${esc(t)}</b><div class="sm muted">${esc(x)}</div></div>`;
   el.classList.add('show');clearTimeout(pushT);pushT=setTimeout(()=>el.classList.remove('show'),4500);
 }
 function checkFila(n){waiting(n).forEach(f=>{const a=ahead(f);if(a<=2&&!f.av&&f.cli){f.av=true;notify(f.cli,'Ya casi es tu turno',`Te faltan ${a} en ${neg(n).nombre}. Andate acercando.`);}});}

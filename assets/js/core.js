@@ -57,7 +57,7 @@ const ICON = {
   out: '<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>',
 };
 const svg = (k, fill) => `<svg viewBox="0 0 24 24" fill="${fill ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
-const MARK = `<span class="mark"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3.5 4h9M8 4v8.5"/></svg></span>`;
+const MARK = `<span class="mark"><img src="/assets/img/icon.svg" alt="" width="26" height="26"></span>`;
 
 /* ---------- Acciones por atributos (sin código en línea) ----------
    data-a="accion" data-p="arg1|arg2"  → A.accion(arg1, arg2) al tocar
