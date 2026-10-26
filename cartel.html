@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Somar Turno · Cartel para imprimir</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/img/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Cartel tamaño carta (8.5 × 11 in) o media carta (dos por hoja). Morado Turno #6A3EA1, Tinta #16181D. */
+@page { size: letter; margin: 0 }
+* { box-sizing: border-box; margin: 0 }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact }
+body { font-family: 'Schibsted Grotesk', system-ui, sans-serif; background: #E9EBEF; color: #16181D; -webkit-font-smoothing: antialiased }
+.bar { position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid #E2E5EA; padding: 12px max(16px, env(safe-area-inset-left)); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between }
+.bar b { font-size: 16px }
+.bar .opts { display: flex; gap: 8px; flex-wrap: wrap }
+.bar button, .bar a { font: inherit; font-weight: 600; font-size: 15px; border: 1px solid #E2E5EA; background: #fff; border-radius: 10px; padding: 9px 14px; cursor: pointer; color: #16181D; text-decoration: none }
+.bar button[aria-pressed="true"] { background: #16181D; color: #fff; border-color: #16181D }
+.bar .print { background: #6A3EA1; border-color: #6A3EA1; color: #fff }
+.wrap { padding: 24px 16px 60px; display: flex; justify-content: center }
+.sheet { width: 8.5in; height: 11in; background: #fff; box-shadow: 0 10px 40px rgba(0,0,0,.12); display: flex; flex-direction: column; overflow: hidden }
+.sheet.media { flex-direction: column }
+.poster { flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; padding: .55in .6in .45in; position: relative }
+.sheet.media .poster { padding: .3in .5in .25in; border-bottom: 1px dashed #C9CDD6 }
+.sheet.media .poster:last-child { border-bottom: 0 }
+.brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 24px; letter-spacing: -.02em }
+.brand img { width: 36px; height: 36px }
+.neg { margin-top: .4in; font-weight: 800; font-size: 56px; letter-spacing: -.035em; line-height: 1.02; text-wrap: balance; max-width: 6.8in }
+.h { margin-top: .14in; font-weight: 700; font-size: 30px; color: #6A3EA1; letter-spacing: -.01em }
+/* El código QR va dentro de un ticket, como el símbolo de la marca */
+.ticket { margin-top: .4in; position: relative; background: #6A3EA1; border-radius: 34px; padding: 34px;
+  -webkit-mask: radial-gradient(circle 22px at 0 50%, #0000 97%, #000) left/51% 100% no-repeat, radial-gradient(circle 22px at 100% 50%, #0000 97%, #000) right/51% 100% no-repeat;
+  mask: radial-gradient(circle 22px at 0 50%, #0000 97%, #000) left/51% 100% no-repeat, radial-gradient(circle 22px at 100% 50%, #0000 97%, #000) right/51% 100% no-repeat }
+.qrbox { background: #fff; border-radius: 18px; padding: 22px; position: relative }
+.qr { width: 4.1in; height: 4.1in }
+.qr img, .qr canvas { width: 100% !important; height: 100% !important; display: block; image-rendering: pixelated }
+.center { position: absolute; left: 50%; top: 50%; width: 22%; height: 22%; transform: translate(-50%, -50%); background: #fff; border-radius: 16px; padding: 6px; display: grid; place-items: center }
+.center img { width: 100%; height: 100% }
+.url { margin-top: .2in; font-weight: 700; font-size: 21px; color: #555C68; letter-spacing: .01em }
+.steps { margin-top: .42in; display: grid; grid-template-columns: repeat(3, 1fr); gap: .22in; width: 100%; max-width: 6.9in }
+.step { display: flex; flex-direction: column; align-items: center; gap: 8px }
+.step i { font-style: normal; width: 46px; height: 46px; border-radius: 50%; background: #16181D; color: #fff; font-weight: 800; font-size: 19px; display: grid; place-items: center }
+.step span { font-weight: 600; font-size: 19px; line-height: 1.25; color: #16181D; text-wrap: balance }
+.by { margin-top: auto; padding-top: .2in; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; color: #8A909B }
+.by img { width: 20px; height: 20px }
+.by b { color: #16181D }
+/* Media carta: más compacto */
+.sheet.media .neg { margin-top: .14in; font-size: 30px }
+.sheet.media .brand { font-size: 18px } .sheet.media .brand img { width: 26px; height: 26px }
+.sheet.media .h { font-size: 19px; margin-top: .06in }
+.sheet.media .ticket { margin-top: .14in; padding: 20px; border-radius: 24px }
+.sheet.media .qrbox { padding: 14px; border-radius: 12px }
+.sheet.media .qr { width: 2.1in; height: 2.1in }
+.sheet.media .url { font-size: 13px; margin-top: .08in }
+.sheet.media .by { font-size: 12px }
+.sheet.media .steps { display: none }
+.sheet.media .by { padding-top: .1in }
+.vacio { max-width: 520px; margin: 60px auto; background: #fff; border-radius: 16px; padding: 24px; text-align: center; line-height: 1.5 }
+@media screen and (max-width: 860px) { .sheet { transform-origin: top center; transform: scale(calc((100vw - 32px) / 816px)); margin-bottom: calc((100vw - 32px) / 816px * 1056px - 1056px) } }
+@media print { body { background: #fff } .bar { display: none } .wrap { padding: 0 } .sheet { box-shadow: none; transform: none !important; margin: 0 !important } }
+</style>
+</head>
+<body>
+<div class="bar"><b>Cartel para imprimir</b><div class="opts">
+  <button data-tam="carta" aria-pressed="true">Carta</button>
+  <button data-tam="media" aria-pressed="false">Media carta (2 por hoja)</button>
+  <button class="print" id="imprimir">Imprimir o guardar PDF</button>
+</div></div>
+<div class="wrap" id="wrap"></div>
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/core.js"></script>
+<script src="/assets/js/data.js"></script>
+<script src="/assets/js/cartel.js"></script>
+</body>
+</html>
