@@ -1,0 +1,1152 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Somar Turno · Demo</title>
+<meta name="description" content="Probá Somar Turno: citas, fila y puntos para barberías, salones, estilistas y uñas.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16181D">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Layout: one phone-width app column. Quiet white surfaces, ink buttons; the plum accent is kept for selection and the turn ticket. */
+:root{
+  --bg:#F4F5F7; --surface:#FFFFFF; --sunk:#EEF0F3; --ink:#16181D; --ink-2:#555C68; --ink-3:#8A909B; --line:#E2E5EA;
+  --accent:#6A3EA1; --accent-soft:#F2ECF9; --on-ink:#FFFFFF;
+  --good:#15804D; --good-soft:#E4F4EB; --warn:#9A5B05; --warn-soft:#FCF1DE; --bad:#C0344A; --bad-soft:#FBE8EB;
+  --scrim:rgba(16,18,24,.42);
+  --font:'Schibsted Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --r-sm:10px; --r:14px; --r-lg:20px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1014; --surface:#181A20; --sunk:#20232B; --ink:#EEF0F4; --ink-2:#AEB4BF; --ink-3:#7D8490; --line:#2A2E37;
+  --accent:#B896EE; --accent-soft:#2A2238; --on-ink:#0F1014;
+  --good:#4FC489; --good-soft:#143326; --warn:#F0B35C; --warn-soft:#352812; --bad:#F27D8F; --bad-soft:#3A1C23;
+  --scrim:rgba(0,0,0,.6); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1014; --surface:#181A20; --sunk:#20232B; --ink:#EEF0F4; --ink-2:#AEB4BF; --ink-3:#7D8490; --line:#2A2E37;
+  --accent:#B896EE; --accent-soft:#2A2238; --on-ink:#0F1014;
+  --good:#4FC489; --good-soft:#143326; --warn:#F0B35C; --warn-soft:#352812; --bad:#F27D8F; --bad-soft:#3A1C23;
+  --scrim:rgba(0,0,0,.6); color-scheme:dark}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px;border-radius:8px}
+h1,h2,h3,p{margin:0}
+h1,h2{text-wrap:balance;letter-spacing:-.015em}
+.num{font-variant-numeric:tabular-nums}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+#app{max-width:480px;margin:0 auto;min-height:100vh;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px 10px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;letter-spacing:-.02em}
+.mark{width:26px;height:26px;border-radius:8px;background:var(--ink);display:grid;place-items:center;flex:none}
+.mark svg{width:16px;height:16px}
+.demo{font-size:13px;color:var(--ink-3)}
+.roles{display:flex;gap:4px;padding-block:0 10px;overflow-x:auto;scrollbar-width:none}
+.roles button{flex:1;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 10px;font-size:14px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.roles button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+
+.screen{display:flex;flex-direction:column;gap:20px;padding-block:20px 28px}
+.title{display:flex;flex-direction:column;gap:4px}
+.title h1{font-size:28px;font-weight:800;line-height:1.1}
+.title p{color:var(--ink-2)}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec-h{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:32px}
+.sec-h h2{font-size:17px;font-weight:700}
+.muted{color:var(--ink-2)} .faint{color:var(--ink-3)} .sm{font-size:14px} .xs{font-size:13px}
+.b{font-weight:700}
+
+.list{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.item{display:flex;align-items:center;gap:12px;padding:13px 14px;border-top:1px solid var(--line);min-width:0;width:100%;text-align:left;background:transparent;border-left:0;border-right:0;border-bottom:0}
+.item:first-child{border-top:0}
+.item.top-al{align-items:flex-start}
+.item .body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.item .l1{font-weight:600;overflow-wrap:anywhere}
+.item .l2{font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}
+.chev{color:var(--ink-3);font-size:20px;line-height:1}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel.soft{background:var(--accent-soft);border-color:transparent}
+.panel.warn{background:var(--warn-soft);border-color:transparent}
+.panel.bad{background:var(--bad-soft);border-color:transparent}
+.hr{height:1px;background:var(--line)}
+.meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:14px;color:var(--ink-2);align-items:center}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:12px;min-height:44px;padding:10px 16px;font-weight:600;font-size:15px;text-decoration:none;color:var(--ink);white-space:nowrap}
+.btn.ink{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:var(--on-ink)}
+.btn.good{background:var(--good);border-color:var(--good);color:#fff}
+.btn.danger{color:var(--bad)}
+.btn.wa{background:#1DA851;border-color:#1DA851;color:#fff}
+.btn.quiet{background:transparent;border-color:transparent;color:var(--ink-2)}
+.btn.s{min-height:36px;padding:6px 12px;font-size:14px;border-radius:10px}
+.btn.full{width:100%}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.row-btns{display:flex;flex-wrap:wrap;gap:8px}
+.link{background:none;border:0;padding:0;color:var(--accent);font-weight:600;font-size:15px}
+
+.tag{display:inline-flex;align-items:center;border-radius:999px;padding:2px 9px;font-size:12.5px;font-weight:600;white-space:nowrap;background:var(--sunk);color:var(--ink-2)}
+.tag.a{background:var(--accent-soft);color:var(--accent)}
+.tag.g{background:var(--good-soft);color:var(--good)}
+.tag.w{background:var(--warn-soft);color:var(--warn)}
+.tag.r{background:var(--bad-soft);color:var(--bad)}
+.star{color:#E0A100}
+
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-inline:-2px;padding:2px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-size:14px;font-weight:600;white-space:nowrap;color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat b{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;letter-spacing:-.02em}
+.stat span{font-size:13px;color:var(--ink-2)}
+
+.search{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 12px}
+.search svg{width:18px;height:18px;color:var(--ink-3);flex:none}
+.search input{border:0;background:transparent;min-height:46px;flex:1;min-width:0;outline:none}
+
+.mono{flex:none;width:48px;height:48px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:17px;color:#fff;letter-spacing:-.02em}
+.mono.s{width:38px;height:38px;font-size:14px;border-radius:10px}
+.av{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;background:var(--sunk);color:var(--ink-2)}
+.biz{display:flex;gap:12px;align-items:flex-start;padding:14px;cursor:pointer}
+.biz .body{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.biz .name{font-weight:700;font-size:17px;letter-spacing:-.01em}
+.fav{border:0;background:transparent;padding:4px;color:var(--ink-3);flex:none}
+.fav svg{width:22px;height:22px}
+.fav[aria-pressed="true"]{color:var(--bad)}
+
+/* The turn ticket: a perforated stub with the number you wait for. */
+.ticket{position:relative;display:grid;grid-template-columns:auto 1fr;gap:2px 18px;align-items:center;background:var(--accent);color:var(--on-ink);border-radius:var(--r-lg);padding:18px 20px;cursor:pointer;
+  -webkit-mask:radial-gradient(circle 9px at 0 50%,#0000 97%,#000) left/51% 100% no-repeat,radial-gradient(circle 9px at 100% 50%,#0000 97%,#000) right/51% 100% no-repeat;
+  mask:radial-gradient(circle 9px at 0 50%,#0000 97%,#000) left/51% 100% no-repeat,radial-gradient(circle 9px at 100% 50%,#0000 97%,#000) right/51% 100% no-repeat}
+.ticket .n{grid-row:span 3;font-size:56px;font-weight:800;line-height:.9;letter-spacing:-.04em;padding-right:18px;border-right:2px dashed color-mix(in srgb,var(--on-ink) 35%,transparent)}
+.ticket .k{font-size:13px;opacity:.85}
+.ticket .big{font-size:19px;font-weight:700}
+.ticket.called{background:var(--good);color:#fff}
+.ticket.called .n{border-color:rgba(255,255,255,.4)}
+.tn{flex:none;font-weight:800;font-size:18px;min-width:46px;text-align:center;border:1.5px dashed var(--line);border-radius:10px;padding:5px 4px;font-variant-numeric:tabular-nums}
+.tn.on{border-style:solid;border-color:var(--good);color:var(--good)}
+
+.bar{height:8px;border-radius:9px;background:var(--sunk);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:9px}
+
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(480px,100%);z-index:30;background:var(--surface);border-top:1px solid var(--line);display:grid;padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.tabs button{border:0;background:transparent;padding:9px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;font-weight:600;color:var(--ink-3);position:relative}
+.tabs svg{width:23px;height:23px}
+.tabs button[aria-current="page"]{color:var(--ink)}
+.dot{position:absolute;top:5px;left:calc(50% + 5px);background:var(--bad);color:#fff;border-radius:99px;font-size:11px;min-width:17px;height:17px;display:grid;place-items:center;padding:0 4px}
+
+.wrap{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;background:var(--scrim)}
+.sheet{background:var(--bg);width:min(480px,100%);max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding-block:8px calc(22px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:16px}
+.grab{width:40px;height:5px;border-radius:9px;background:var(--line);margin:2px auto 0;flex:none}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sh h2{font-size:21px;font-weight:800}
+.x{border:0;background:var(--sunk);border-radius:50%;width:34px;height:34px;color:var(--ink-2);flex:none;display:grid;place-items:center}
+.x svg{width:16px;height:16px}
+.f{display:flex;flex-direction:column;gap:6px;min-width:0}
+.f label{font-size:14px;font-weight:600}
+.f input,.f select,.f textarea{background:var(--surface);border:1px solid var(--line);border-radius:12px;min-height:46px;padding:10px 12px;width:100%;min-width:0}
+.f textarea{min-height:78px;resize:vertical}
+.f .hint{font-size:13px;color:var(--ink-3)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opt{border:1.5px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:0}
+.opt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.opt b{font-weight:700}
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.slot{border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 2px;font-weight:600;font-size:14px;font-variant-numeric:tabular-nums}
+.slot[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.days{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px}
+.day{flex:none;border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 10px;min-width:58px;display:flex;flex-direction:column;align-items:center;font-size:13px;font-weight:600;color:var(--ink-2)}
+.day b{font-size:19px;color:var(--ink)}
+.day[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
+.day[aria-pressed="true"] b{color:var(--on-ink)}
+.day:disabled{opacity:.35}
+.steps{display:flex;gap:5px}
+.steps i{flex:1;height:4px;border-radius:9px;background:var(--line)}
+.steps i.on{background:var(--ink)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;background:var(--sunk);border-radius:12px;padding:4px}
+.seg button{border:0;background:transparent;border-radius:9px;padding:9px 6px;font-weight:600;font-size:14px;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.stars-in{display:flex;gap:2px}
+.stars-in button{border:0;background:transparent;font-size:34px;line-height:1;color:var(--line);padding:2px}
+.stars-in button.on{color:#E0A100}
+.sw{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.switch{flex:none;width:50px;height:30px;border-radius:99px;border:0;background:var(--line);position:relative;padding:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .15s}
+.switch[aria-checked="true"]{background:var(--good)}
+.switch[aria-checked="true"]::after{left:23px}
+.bank{display:flex;align-items:center;gap:12px}
+.bank .ic{flex:none;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff}
+.acct{font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.upload{border:1.5px dashed var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;background:var(--surface);cursor:pointer}
+.upload input{position:absolute;width:1px;height:1px;opacity:0}
+.proof{max-width:100%;max-height:360px;border-radius:12px;border:1px solid var(--line);align-self:center;background:#fff}
+.wa-b{align-self:flex-start;background:#DCF8C6;color:#111;border-radius:4px 14px 14px 14px;padding:10px 12px;max-width:88%;font-size:15px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:9px 6px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap}
+th{font-size:13px;color:var(--ink-3);font-weight:600;border-top:0}
+.r{text-align:right}
+.qr{background:#fff;padding:12px;border-radius:12px;display:grid;place-items:center;align-self:center}
+.reply{border-left:3px solid var(--line);padding-left:10px;font-size:14px;color:var(--ink-2)}
+.empty{text-align:center;color:var(--ink-2);padding:22px 14px;font-size:15px}
+.note{background:var(--warn-soft);border-radius:8px;padding:6px 9px;font-size:14px}
+
+.push{position:fixed;left:50%;transform:translate(-50%,-150%);top:calc(10px + env(safe-area-inset-top,0px));width:min(456px,calc(100% - 24px));z-index:60;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:12px 14px;display:flex;gap:12px;align-items:flex-start;transition:transform .35s ease;cursor:pointer}
+.push.show{transform:translate(-50%,0)}
+.push .body{flex:1;min-width:0}
+.toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;background:var(--ink);color:var(--on-ink);border-radius:12px;padding:11px 16px;font-weight:600;font-size:15px;width:max-content;max-width:calc(100% - 32px);text-align:center}
+.tv{position:fixed;inset:0;z-index:80;background:#101218;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));text-align:center}
+.tv .now{font-size:min(34vw,180px);font-weight:800;line-height:1;letter-spacing:-.05em;color:#C9A8FF}
+.tv .nx{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.tv .nx span{font-size:28px;font-weight:800;border:2px dashed rgba(255,255,255,.35);border-radius:12px;padding:4px 14px}
+@media (prefers-reduced-motion:reduce){.push,.switch::after{transition:none}}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header class="top">
+    <div class="top-row gut">
+      <div class="brand"><span class="mark"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3.5 4h9M8 4v8.5"/></svg></span>Somar Turno</div>
+      <div style="display:flex;align-items:center;gap:6px"><a class="btn s ink" href="/panel" style="min-height:32px">Para mi negocio</a><button class="btn quiet s" data-a="askReset" aria-label="Reiniciar la demo" title="Reiniciar la demo" style="padding:6px 8px">↺</button></div>
+    </div>
+    <div class="roles gut" role="group" aria-label="Ver la app como">
+      <button data-a="setRole" data-p="cliente" data-role="cliente">Cliente</button>
+      <button data-a="setRole" data-p="negocio" data-role="negocio">Negocio</button>
+      <button data-a="setRole" data-p="pro" data-role="pro">Profesional</button>
+      <button data-a="setRole" data-p="somar" data-role="somar">Somar</button>
+    </div>
+  </header>
+  <main class="screen gut" id="screen"></main>
+  <nav class="tabs" id="tabs" aria-label="Secciones"></nav>
+</div>
+<div class="push" id="push" role="status" aria-live="polite" data-a="pushTap"></div>
+<div id="sheetHost"></div>
+<div id="toastHost"></div>
+<div id="tvHost"></div>
+
+<script>
+/* =================== Utilidades =================== */
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const addDays=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return iso(d);};
+const T=iso(new Date());
+const nowMin=()=>{const d=new Date();return d.getHours()*60+d.getMinutes();};
+const h2m=h=>{const [a,b]=h.split(':').map(Number);return a*60+b;};
+const m2h=m=>pad(Math.floor(m/60))+':'+pad(m%60);
+const h12=h=>{const m=h2m(h);let H=Math.floor(m/60);const M=m%60,ap=H<12?'a. m.':'p. m.';H=H%12||12;return H+':'+pad(M)+' '+ap;};
+const DIAS=['dom','lun','mar','mié','jue','vie','sáb'];
+const DIAS_L=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const fLbl=s=>{if(s===T)return'Hoy';if(s===addDays(T,1))return'Mañana';if(s===addDays(T,-1))return'Ayer';const d=new Date(s+'T12:00:00');return DIAS[d.getDay()]+' '+d.getDate()+' '+MESES[d.getMonth()];};
+const dBetween=(a,b)=>Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5);
+const L=n=>'L '+Number(n).toLocaleString('es-HN',{maximumFractionDigits:0});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let _id=1000;const uid=p=>p+(++_id);
+const ini=n=>n.split(' ').filter(w=>w&&w[0]===w[0].toUpperCase()).slice(0,2).map(w=>w[0]).join('');
+const first=n=>n.split(' ')[0]==='Don'?n.split(' ').slice(0,2).join(' '):n.split(' ')[0];
+const stars=v=>'★★★★★'.slice(0,Math.round(v))+'☆☆☆☆☆'.slice(0,5-Math.round(v));
+const waLink=(tel,msg)=>'https://wa.me/504'+String(tel).replace(/\D/g,'')+'?text='+encodeURIComponent(msg);
+/* data-a: acción al tocar; data-p: argumentos separados por | */
+const act=(a,...p)=>`data-a="${a}"${p.length?` data-p="${p.map(x=>esc(x)).join('|')}"`:''}`;
+const ICON={
+  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  ticket:'<path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/>',
+  gift:'<rect x="3" y="9" width="18" height="12" rx="1.5"/><path d="M12 9v12M3 13h18M12 9c-2-4-6-4-6-1.5S10 9 12 9zm0 0c2-4 6-4 6-1.5S14 9 12 9z"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>',
+  today:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="12" cy="15" r="2"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7 14h4M7 17h7"/>',
+  people:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c2 .7 3.2 2.5 3.6 5.2"/>',
+  cash:'<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/>',
+  more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  star:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
+  chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  store:'<path d="M3 9l1.5-5h15L21 9M3 9v11h18V9M3 9h18M9 20v-6h6v6"/>',
+  flag:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  layers:'<path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/>',
+  heart:'<path d="M12 20s-7-4.4-9-9a4.8 4.8 0 0 1 9-3 4.8 4.8 0 0 1 9 3c-2 4.6-9 9-9 9z"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  x:'<path d="M5 5l14 14M19 5L5 19"/>',
+  up:'<path d="M12 16V4M6 10l6-6 6 6M4 20h16"/>',
+};
+const svg=(k,fill)=>`<svg viewBox="0 0 24 24" fill="${fill?'currentColor':'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
+const CAT={barberia:'Barbería',salon:'Salón de belleza',estilista:'Estilista',unas:'Uñas'};
+const BANK_COLOR={'BAC Credomatic':'#C8102E','Banco Atlántida':'#003A70','Ficohsa':'#0B5FA5','Banpaís':'#00843D','Banco de Occidente':'#1B3F8B','Tigo Money':'#00377B'};
+const bankAbbr=b=>({'BAC Credomatic':'BAC','Banco Atlántida':'ATL','Ficohsa':'FIC','Banpaís':'BPS','Banco de Occidente':'OCC','Tigo Money':'TIGO'})[b]||b.slice(0,3).toUpperCase();
+/* Comprobante de ejemplo, dibujado como imagen */
+const fakeProof=(banco,monto,cuenta,nombre,ref)=>'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="320" height="440" viewBox="0 0 320 440"><rect width="320" height="440" fill="#ffffff"/><rect width="320" height="74" fill="${BANK_COLOR[banco]||'#333'}"/><text x="20" y="46" font-family="Arial,sans-serif" font-size="22" font-weight="700" fill="#fff">${banco}</text><circle cx="160" cy="128" r="26" fill="#E6F4EA"/><path d="M147 128l9 9 17-18" stroke="#1E8E3E" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="160" y="186" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="#1E8E3E">Transferencia exitosa</text><text x="160" y="232" text-anchor="middle" font-family="Arial,sans-serif" font-size="36" font-weight="700" fill="#111">L ${monto}.00</text><g font-family="Arial,sans-serif" font-size="14" fill="#555"><text x="24" y="290">Desde</text><text x="296" y="290" text-anchor="end" fill="#111">${nombre}</text><text x="24" y="320">Cuenta destino</text><text x="296" y="320" text-anchor="end" fill="#111">${cuenta}</text><text x="24" y="350">Referencia</text><text x="296" y="350" text-anchor="end" fill="#111">${ref}</text><text x="24" y="380">Fecha</text><text x="296" y="380" text-anchor="end" fill="#111">${T.split('-').reverse().join('/')}</text></g></svg>`);
+
+/* =================== Datos de prueba =================== */
+let D;
+const H=(a,b,dom)=>{const h={};for(let i=1;i<=6;i++)h[i]=[a,b];if(dom)h[0]=dom;return h;};
+function seed(){
+  D={me:'c1',role:'cliente',ownerNeg:'n1',pro:'p1',guest:null,
+  negocios:[
+    {id:'n1',slug:'el-patron',nombre:'El Patrón Barbería',cat:'barberia',zona:'Choloma',direccion:'Col. López Arellano, frente al parque',tel:'9944-1020',color:'#22252D',horario:H(8,19,[8,14]),fila:true,filaCasa:true,plan:'Pro',estado:'activo',lpp:10,ptsRef:50,
+      recompensas:[{id:'r1',nombre:'Barba gratis',pts:60},{id:'r2',nombre:'Corte clásico gratis',pts:100},{id:'r3',nombre:'Corte y barba gratis',pts:150}],contador:14,cajaCerrada:false,
+      cuentas:[{id:'b1',banco:'BAC Credomatic',tipo:'Ahorro',numero:'730 412 559',titular:'Luis Alberto Martínez'},{id:'b2',banco:'Banco Atlántida',tipo:'Cheques',numero:'1020 3349 8812',titular:'El Patrón Barbería'},{id:'b3',banco:'Tigo Money',tipo:'Billetera',numero:'9944-1020',titular:'Luis Martínez'}]},
+    {id:'n2',slug:'studio-bella',nombre:'Studio Bella Salón',cat:'salon',zona:'San Pedro Sula',direccion:'Barrio Guamilito, 6 calle',tel:'9877-3311',color:'#8A3B5C',horario:H(9,18),fila:false,filaCasa:false,plan:'Plus',estado:'activo',lpp:10,ptsRef:80,
+      recompensas:[{id:'r4',nombre:'Lavado y secado gratis',pts:80},{id:'r5',nombre:'Peinado gratis',pts:150}],contador:1,cajaCerrada:false,
+      cuentas:[{id:'b4',banco:'Ficohsa',tipo:'Ahorro',numero:'200 015 778 431',titular:'Sofía Aguilar'}]},
+    {id:'n3',slug:'nails-by-dany',nombre:'Nails by Dany',cat:'unas',zona:'San Pedro Sula',direccion:'Col. Jardines del Valle, casa 14',tel:'9655-2040',color:'#B4486E',horario:H(9,19),fila:false,filaCasa:false,plan:'Pro',estado:'activo',lpp:10,ptsRef:50,
+      recompensas:[{id:'r6',nombre:'Gelish gratis',pts:120},{id:'r7',nombre:'Pedicure spa gratis',pts:180}],contador:1,cajaCerrada:false,
+      cuentas:[{id:'b5',banco:'Banpaís',tipo:'Ahorro',numero:'2160 004 3321',titular:'Daniela Flores'},{id:'b6',banco:'Tigo Money',tipo:'Billetera',numero:'9655-2040',titular:'Daniela Flores'}]},
+    {id:'n4',slug:'karla-reyes',nombre:'Karla Reyes Estilista',cat:'estilista',zona:'Choloma',direccion:'Res. Las Colinas, bloque B',tel:'9811-6070',color:'#5D4E8C',horario:H(9,17),fila:false,filaCasa:false,plan:'Gratis',estado:'activo',lpp:10,ptsRef:50,
+      recompensas:[{id:'r8',nombre:'Planchado gratis',pts:100}],contador:1,cajaCerrada:false,
+      cuentas:[{id:'b7',banco:'BAC Credomatic',tipo:'Ahorro',numero:'741 220 018',titular:'Karla Reyes'}]},
+    {id:'n5',slug:'barber-kings',nombre:'Barber Kings',cat:'barberia',zona:'San Pedro Sula',direccion:'Col. Trejo, plaza Las Palmas',tel:'9601-7788',color:'#2F4B66',horario:H(9,20,[9,20]),fila:true,filaCasa:false,plan:'Gratis',estado:'activo',lpp:10,ptsRef:30,
+      recompensas:[{id:'r9',nombre:'Corte gratis',pts:120}],contador:6,cajaCerrada:false,cuentas:[]},
+    {id:'n6',slug:'glamour-unas',nombre:'Glamour Uñas y Spa',cat:'unas',zona:'Villanueva',direccion:'Barrio El Centro, junto a la iglesia',tel:'9512-4400',color:'#A0557A',horario:H(9,18),fila:false,filaCasa:false,plan:'Gratis',estado:'pendiente',lpp:10,ptsRef:50,recompensas:[],contador:1,cajaCerrada:false,cuentas:[]},
+  ],
+  pros:[
+    {id:'p1',neg:'n1',nombre:'Luis Martínez',rol:'Barbero',com:40},{id:'p2',neg:'n1',nombre:'Jorge Rápalo',rol:'Barbero',com:40},{id:'p3',neg:'n1',nombre:'Brayan Mejía',rol:'Barbero',com:35},
+    {id:'p4',neg:'n2',nombre:'Sofía Aguilar',rol:'Estilista',com:45},{id:'p5',neg:'n2',nombre:'Paola Mejía',rol:'Colorista',com:45},
+    {id:'p6',neg:'n3',nombre:'Daniela Flores',rol:'Manicurista',com:0},{id:'p7',neg:'n3',nombre:'Wendy Paz',rol:'Manicurista',com:40},
+    {id:'p8',neg:'n4',nombre:'Karla Reyes',rol:'Estilista',com:0},
+    {id:'p9',neg:'n5',nombre:'Óscar Fúnez',rol:'Barbero',com:50},
+    {id:'p10',neg:'n6',nombre:'Ingrid Castro',rol:'Manicurista',com:0},
+  ],
+  servs:[
+    {id:'s1',neg:'n1',nombre:'Corte clásico',precio:150,dur:30},{id:'s2',neg:'n1',nombre:'Corte y barba',precio:220,dur:45},{id:'s3',neg:'n1',nombre:'Barba',precio:100,dur:20},{id:'s4',neg:'n1',nombre:'Corte de niño',precio:120,dur:30},{id:'s5',neg:'n1',nombre:'Diseño o líneas',precio:80,dur:15},
+    {id:'s6',neg:'n2',nombre:'Corte de dama',precio:300,dur:45},{id:'s7',neg:'n2',nombre:'Tinte completo',precio:900,dur:120},{id:'s8',neg:'n2',nombre:'Peinado',precio:350,dur:45},{id:'s9',neg:'n2',nombre:'Lavado y secado',precio:200,dur:40},{id:'s10',neg:'n2',nombre:'Keratina',precio:1500,dur:150},
+    {id:'s11',neg:'n3',nombre:'Manicure clásico',precio:200,dur:40},{id:'s12',neg:'n3',nombre:'Uñas acrílicas',precio:550,dur:90},{id:'s13',neg:'n3',nombre:'Gelish en manos',precio:350,dur:60},{id:'s14',neg:'n3',nombre:'Pedicure spa',precio:400,dur:60},
+    {id:'s15',neg:'n4',nombre:'Corte y secado',precio:280,dur:50},{id:'s16',neg:'n4',nombre:'Mechas',precio:1200,dur:150},{id:'s17',neg:'n4',nombre:'Planchado',precio:250,dur:40},
+    {id:'s18',neg:'n5',nombre:'Corte',precio:140,dur:30},{id:'s19',neg:'n5',nombre:'Corte y barba',precio:200,dur:45},
+    {id:'s20',neg:'n6',nombre:'Manicure',precio:180,dur:40},
+  ],
+  clientes:[
+    {id:'c1',nombre:'Carlos Mejía',tel:'9812-3344',ref:'CARLOS7',cuenta:true,notas:{n1:'Fade bajo, 2 a los lados. Barba con navaja.'},favs:['n1']},
+    {id:'c2',nombre:'José Ramírez',tel:'9701-2233',ref:'JOSE21',cuenta:true,notas:{},favs:[]},
+    {id:'c3',nombre:'Kevin Paz',tel:'3344-5566',ref:'KEVIN4',cuenta:true,notas:{},favs:[]},
+    {id:'c4',nombre:'Daniel Rivera',tel:'9455-8811',ref:'DANI88',cuenta:true,notas:{},favs:[]},
+    {id:'c5',nombre:'Marlon Euceda',tel:'8899-1212',ref:'MARLON3',cuenta:true,notas:{},favs:[]},
+    {id:'c6',nombre:'Fernando Banegas',tel:'9622-0909',ref:'FER55',cuenta:true,notas:{},favs:[]},
+    {id:'c7',nombre:'Andrea Castillo',tel:'9988-4545',ref:'ANDRE9',cuenta:true,notas:{n2:'Tinte 6.1, raíz cada 5 semanas.'},favs:[]},
+    {id:'c8',nombre:'Don Mario Hernández',tel:'9533-7070',ref:'',cuenta:false,notas:{n1:'No usa la app. Avisarle por WhatsApp.'},favs:[]},
+    {id:'c9',nombre:'Ricardo Pineda',tel:'9310-6464',ref:'RICKY2',cuenta:true,notas:{},favs:[]},
+    {id:'c10',nombre:'Héctor Zelaya',tel:'9744-1919',ref:'HECTOR6',cuenta:true,notas:{},favs:[]},
+    {id:'c11',nombre:'Gabriela Turcios',tel:'9420-3131',ref:'GABY12',cuenta:true,notas:{n3:'Le gustan las uñas almendradas, largo medio.'},favs:[]},
+    {id:'c12',nombre:'Lesly Romero',tel:'9707-5858',ref:'LESLY5',cuenta:true,notas:{},favs:[]},
+    {id:'c13',nombre:'Nicole Bonilla',tel:'3150-2626',ref:'NICOLE3',cuenta:true,notas:{},favs:[]},
+    {id:'c14',nombre:'Doña Rosa Paz',tel:'9488-1010',ref:'',cuenta:false,notas:{},favs:[]},
+  ],
+  citas:[],fila:[],visitas:[],puntos:[],cals:[],notifs:[]};
+  const sv=id=>D.servs.find(s=>s.id===id);
+  const visit=(n,c,p,s,ago,metodo,hora,extra)=>{
+    const v=Object.assign({id:uid('v'),neg:n,cli:c,pro:p,serv:s,monto:sv(s).precio,fecha:addDays(T,-ago),hora:hora||'10:00',calificada:false,canje:null,pago:{metodo:metodo||'efectivo',estado:'pagado',cuenta:null,ref:'',comp:null}},extra||{});
+    D.visitas.push(v);
+    if(c&&D.clientes.find(x=>x.id===c).cuenta&&v.pago.estado==='pagado')D.puntos.push({id:uid('m'),cli:c,neg:n,pts:Math.floor(v.monto/10),motivo:'Visita: '+sv(s).nombre,fecha:v.fecha});
+    return v;
+  };
+  const rate=(n,c,p,s,ago,en,ep,txt,extra)=>{const v=visit(n,c,p,s,ago);v.calificada=true;D.cals.push(Object.assign({id:uid('q'),visita:v.id,neg:n,pro:p,cli:c,en,ep,txt,fecha:v.fecha,resp:'',reportada:false},extra||{}));};
+  // Historial de Carlos
+  rate('n1','c1','p1','s2',41,5,5,'Luis es el único que me corta como me gusta.',{resp:'Gracias Carlos, aquí te esperamos.'});
+  visit('n1','c1','p1','s1',20,'transferencia','17:30').calificada=true;
+  visit('n1','c1','p1','s2',2,'efectivo','15:00');
+  // Calificaciones
+  [['n1','c3','p1','s1',3,5,5,'Luis siempre deja el fade parejo. Puntual con la cita.'],['n1','c4','p2','s1',5,5,4,'Buen corte. Había gente pero la fila en el celular ayudó.'],['n1','c5','p3','s2',6,4,5,'Brayan bien detallista con la barba.'],['n1','c2','p1','s2',8,5,5,''],['n1','c6','p2','s1',9,3,3,'Esperé casi una hora aunque tenía cita.'],['n1','c9','p1','s1',45,5,5,'El mejor de Choloma.'],['n1','c10','p3','s4',11,5,4,'Le cortaron al niño con paciencia.'],['n1','c3','p2','s3',13,4,4,''],['n1','c4','p3','s1',15,5,5,''],['n1','c5','p2','s2',17,5,5,'Jorge tiene buena mano.'],['n1','c6','p1','s1',19,5,5,''],['n1','c2','p3','s3',22,4,4,''],['n1','c10','p2','s1',24,5,4,''],['n1','c9','p3','s2',50,5,5,''],
+   ['n2','c7','p5','s7',4,5,5,'Paola me dejó el tinte perfecto, justo el tono que pedí.'],['n2','c12','p4','s6',9,5,4,'Muy buen corte, el lugar bien limpio.'],['n2','c13','p4','s8',12,4,5,'Peinado lindo para la boda.'],['n2','c7','p4','s9',20,5,5,''],['n2','c11','p5','s7',26,5,5,''],['n2','c12','p5','s10',31,4,4,''],['n2','c13','p4','s6',33,5,5,''],
+   ['n3','c11','p6','s12',6,5,5,'Dany es una artista, las acrílicas me duraron un montón.'],['n3','c12','p7','s13',10,5,4,'Wendy muy amable.'],['n3','c13','p6','s14',14,4,5,''],['n3','c7','p6','s11',18,5,5,''],['n3','c11','p7','s13',23,5,5,''],['n3','c13','p6','s12',27,5,5,''],['n3','c12','p7','s11',30,4,4,''],
+   ['n4','c12','p8','s15',8,5,5,'Karla me atendió puntual y el corte quedó como en la foto.'],['n4','c13','p8','s17',16,5,5,''],['n4','c7','p8','s16',25,4,5,''],
+   ['n5','c4','p9','s18',7,4,4,'Rápido y barato.'],['n5','c3','p9','s19',10,4,5,''],['n5','c6','p9','s18',18,5,4,''],
+  ].forEach(a=>rate(...a));
+  rate('n5','c5','p9','s18',14,1,1,'Pésimo, no vayan, son unos estafadores y unos sinvergüenzas.',{reportada:true,motivo:'El cliente nunca llegó al local; creemos que la reseña es falsa.'});
+  // Hoy en El Patrón
+  visit('n1','c10','p3','s2',0,'efectivo','08:30');
+  visit('n1',null,'p2','s3',0,'efectivo','09:15');
+  visit('n1','c3','p1','s1',0,'transferencia','10:00',{pago:{metodo:'transferencia',estado:'por_confirmar',cuenta:'b1',ref:'884512',comp:fakeProof('BAC Credomatic',150,'730 412 559','Kevin Paz','884512'),subido:'cliente'}});
+  // Hoy en Nails by Dany
+  visit('n3','c11','p6','s13',0,'transferencia','10:30',{pago:{metodo:'transferencia',estado:'por_confirmar',cuenta:'b6',ref:'TM-55120',comp:fakeProof('Tigo Money',350,'9655-2040','Gabriela Turcios','TM-55120'),subido:'cliente'}});
+  visit('n3','c13','p7','s11',0,'efectivo','09:00');
+  // Citas relativas a la hora actual
+  let b=Math.ceil((nowMin()+15)/30)*30;if(b>22*60)b=22*60;
+  const cita=(n,c,p,s,f,h,e)=>D.citas.push({id:uid('ci'),neg:n,cli:c,pro:p,serv:s,fecha:f,hora:h,estado:e||'confirmada'});
+  cita('n1','c4','p2','s1',T,m2h(b));cita('n1','c1','p1','s2',T,m2h(b+60));cita('n1','c5','p3','s2',T,m2h(b+90),'reservada');
+  cita('n1','c2','p1','s1',addDays(T,1),'09:30','reservada');cita('n1','c6','p2','s2',addDays(T,1),'11:00','reservada');cita('n1','c9','p3','s1',addDays(T,2),'16:30','reservada');
+  cita('n2','c7','p5','s7',T,m2h(b));cita('n2','c12','p4','s6',T,m2h(b+60),'reservada');cita('n2','c14','p4','s9',addDays(T,1),'10:00','reservada');
+  cita('n3','c12','p6','s12',T,m2h(b+30));cita('n3','c13','p7','s14',addDays(T,1),'14:00','reservada');
+  cita('n4','c13','p8','s15',addDays(T,1),'10:00','reservada');
+  const hm=o=>m2h(Math.max(0,nowMin()-o));
+  D.fila.push({id:'f1',neg:'n1',num:11,cli:'c2',nombre:'',pro:null,serv:'s1',estado:'esperando',hora:hm(32),casa:false,av:true});
+  D.fila.push({id:'f2',neg:'n1',num:12,cli:'c6',nombre:'',pro:'p1',serv:'s2',estado:'esperando',hora:hm(20),casa:true,av:true});
+  D.fila.push({id:'f3',neg:'n1',num:13,cli:'c8',nombre:'',pro:null,serv:'s1',estado:'esperando',hora:hm(8),casa:false,av:true});
+  D.fila.push({id:'f4',neg:'n5',num:4,cli:null,nombre:'Cliente en el local',pro:null,serv:'s18',estado:'esperando',hora:hm(15),casa:false,av:true});
+  D.fila.push({id:'f5',neg:'n5',num:5,cli:null,nombre:'Cliente en el local',pro:null,serv:'s18',estado:'esperando',hora:hm(5),casa:false,av:true});
+  D.notifs.push({id:uid('x'),cli:'c1',t:'¿Qué tal tu visita a El Patrón?',x:'Calificá a Luis y al negocio. Tenés 7 días.',leida:false});
+}
+
+/* =================== Consultas =================== */
+const neg=id=>D.negocios.find(n=>n.id===id);
+const pro=id=>D.pros.find(p=>p.id===id);
+const serv=id=>D.servs.find(s=>s.id===id);
+const cli=id=>D.clientes.find(c=>c.id===id);
+const me=()=>D.me?cli(D.me):null;
+const hasAcct=()=>!!(me()&&me().cuenta);
+const prosOf=n=>D.pros.filter(p=>p.neg===n);
+const servsOf=n=>D.servs.filter(s=>s.neg===n);
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const negRt=n=>{const r=D.cals.filter(q=>q.neg===n);return{v:avg(r.map(q=>q.en)),n:r.length};};
+const proRt=p=>{const r=D.cals.filter(q=>q.pro===p);return{v:avg(r.map(q=>q.ep)),n:r.length};};
+const rtTxt=(r,min)=>r.n<(min||1)?'<span class="tag">Nuevo</span>':`<span><span class="star">★</span> <b class="num">${r.v.toFixed(1)}</b> <span class="faint num">(${r.n})</span></span>`;
+const ptsOf=(c,n)=>D.puntos.filter(m=>m.cli===c&&m.neg===n).reduce((a,m)=>a+m.pts,0);
+const isOpen=n=>{const h=n.horario[new Date().getDay()];if(!h)return false;const m=nowMin();return m>=h[0]*60&&m<h[1]*60;};
+const horaHoy=n=>{const h=n.horario[new Date().getDay()];return h?`${h12(m2h(h[0]*60))} a ${h12(m2h(h[1]*60))}`:'Cerrado hoy';};
+const waiting=n=>D.fila.filter(f=>f.neg===n&&f.estado==='esperando').sort((a,b)=>a.num-b.num);
+const called=n=>D.fila.filter(f=>f.neg===n&&f.estado==='llamado');
+const ahead=f=>D.fila.filter(x=>x.neg===f.neg&&x.estado==='esperando'&&x.num<f.num).length;
+const wait=(n,a)=>Math.max(5,Math.round((a+1)*30/Math.max(1,prosOf(n).length)/5)*5);
+const fName=f=>f.cli?cli(f.cli).nombre:(f.nombre||'Cliente');
+const myTurn=()=>D.me&&D.fila.find(f=>f.cli===D.me&&['esperando','llamado'].includes(f.estado));
+const myCitas=()=>D.me?D.citas.filter(c=>c.cli===D.me&&['reservada','confirmada'].includes(c.estado)&&(c.fecha>T||(c.fecha===T&&h2m(c.hora)+serv(c.serv).dur>nowMin()-60))).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora)):[];
+const myPending=()=>D.me?D.visitas.filter(v=>v.cli===D.me&&['por_comprobante','rechazado'].includes(v.pago.estado)):[];
+const toRate=()=>hasAcct()?D.visitas.filter(v=>v.cli===D.me&&!v.calificada&&v.pago.estado==='pagado'&&dBetween(v.fecha,T)<=7):[];
+const clientsOf=n=>{const s=new Set([...D.visitas.filter(v=>v.neg===n).map(v=>v.cli),...D.citas.filter(c=>c.neg===n).map(c=>c.cli),...D.fila.filter(f=>f.neg===n).map(f=>f.cli)].filter(Boolean));return[...s].map(cli);};
+const unread=()=>D.notifs.filter(n=>n.cli===D.me&&!n.leida).length;
+const porConfirmar=n=>D.visitas.filter(v=>v.neg===n&&v.pago.estado==='por_confirmar');
+const overlap=(a,da,b,db)=>a<b+db&&b<a+da;
+function slots(n,fecha,dur,p,ignore){
+  const h=neg(n).horario[new Date(fecha+'T12:00:00').getDay()];if(!h)return[];
+  const out=[],lim=fecha===T?nowMin()+10:-1,ids=p?[p]:prosOf(n).map(x=>x.id);
+  for(let t=h[0]*60;t+dur<=h[1]*60;t+=30){
+    if(t<=lim)continue;
+    const free=ids.find(id=>!D.citas.some(c=>c.id!==ignore&&c.pro===id&&c.fecha===fecha&&['reservada','confirmada'].includes(c.estado)&&overlap(t,dur,h2m(c.hora),serv(c.serv).dur)));
+    if(free)out.push({t,pro:free});
+  }
+  return out;
+}
+
+/* =================== Avisos =================== */
+let pushT;
+function notify(c,t,x){
+  if(!c)return;
+  D.notifs.unshift({id:uid('x'),cli:c,t,x,leida:false});
+  if(c!==D.me||!cli(c).cuenta)return;
+  const el=document.getElementById('push');
+  el.innerHTML=`<span class="mark"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M3.5 4h9M8 4v8.5"/></svg></span><div class="body"><div class="xs faint">Somar Turno, ahora</div><b>${esc(t)}</b><div class="sm muted">${esc(x)}</div></div>`;
+  el.classList.add('show');clearTimeout(pushT);pushT=setTimeout(()=>el.classList.remove('show'),4500);
+}
+function checkFila(n){waiting(n).forEach(f=>{const a=ahead(f);if(a<=2&&!f.av&&f.cli){f.av=true;notify(f.cli,'Ya casi es tu turno',`Te faltan ${a} en ${neg(n).nombre}. Andate acercando.`);}});}
+function toast(m){const h=document.getElementById('toastHost');h.innerHTML=`<div class="toast" role="status">${esc(m)}</div>`;clearTimeout(toast.t);toast.t=setTimeout(()=>h.innerHTML='',2600);}
+
+/* =================== Navegación =================== */
+const V={cliente:'inicio',negocio:'hoy',pro:'dia',somar:'resumen'};
+const UI={q:'',cat:'todos',negView:null,negTab:'servicios',agDia:T,agPro:'todos',cliF:'todos',cliQ:''};
+let MAS=null;
+const TABS={
+  cliente:[['inicio','Inicio','home'],['turnos','Mis turnos','ticket'],['puntos','Puntos','gift'],['perfil','Perfil','user']],
+  negocio:[['hoy','Hoy','today'],['agenda','Agenda','cal'],['clientes','Clientes','people'],['caja','Caja','cash'],['mas','Más','more']],
+  pro:[['dia','Mi día','today'],['ganancias','Ganancias','cash'],['resenas','Reseñas','star']],
+  somar:[['resumen','Resumen','chart'],['negocios','Negocios','store'],['reportes','Reportes','flag'],['planes','Planes','layers']],
+};
+function renderTabs(){
+  const t=TABS[D.role],el=document.getElementById('tabs');el.style.gridTemplateColumns=`repeat(${t.length},1fr)`;
+  el.innerHTML=t.map(([k,l,i])=>{
+    let b=0;
+    if(D.role==='cliente'&&k==='perfil')b=unread();
+    if(D.role==='negocio'&&k==='hoy')b=porConfirmar(D.ownerNeg).length;
+    if(D.role==='somar'&&k==='reportes')b=D.cals.filter(q=>q.reportada).length;
+    if(D.role==='somar'&&k==='negocios')b=D.negocios.filter(n=>n.estado==='pendiente').length;
+    return `<button ${act('go',k)} ${V[D.role]===k?'aria-current="page"':''}>${svg(i)}${l}${b?`<span class="dot num">${b}</span>`:''}</button>`;
+  }).join('');
+}
+function render(){
+  document.querySelectorAll('.roles button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.role===D.role));
+  document.getElementById('screen').innerHTML=({cliente:rCliente,negocio:rNegocio,pro:rPro,somar:rSomar})[D.role]();
+  renderTabs();
+  if(D.role==='negocio'&&MAS==='pagina')drawQR();
+}
+
+/* =================== Hoja inferior =================== */
+let SH=null,F={};
+function openSheet(fn){SH=fn;drawSheet();}
+function drawSheet(){
+  if(!SH)return;const host=document.getElementById('sheetHost');const sc=host.querySelector('.sheet')?.scrollTop||0;
+  host.innerHTML=`<div class="wrap" data-a="scrim"><div class="sheet gut" role="dialog" aria-modal="true"><div class="grab"></div>${SH()}</div></div>`;
+  const s=host.querySelector('.sheet');if(s)s.scrollTop=sc;
+}
+function closeSheet(){SH=null;document.getElementById('sheetHost').innerHTML='';}
+const head=t=>`<div class="sh"><h2>${t}</h2><button class="x" ${act('closeSheet')} aria-label="Cerrar">${svg('x')}</button></div>`;
+/* Confirmación dentro de la página: guarda la acción y la ejecuta al confirmar */
+let CONF=null;
+function ask(titulo,texto,btn,fn,cls){CONF=fn;openSheet(()=>`${head(esc(titulo))}<p class="muted">${esc(texto)}</p><div class="row-btns"><button class="btn ${cls||'ink'}" ${act('confirmYes')}>${esc(btn)}</button><button class="btn" ${act('closeSheet')}>Volver</button></div>`);}
+
+/* =====================================================================
+   CLIENTE
+   ===================================================================== */
+function rCliente(){if(UI.negView)return rNegDetalle(UI.negView);return({inicio:cInicio,turnos:cTurnos,puntos:cPuntos,perfil:cPerfil})[V.cliente]();}
+function ticket(f){
+  const n=neg(f.neg),a=ahead(f);
+  if(f.estado==='llamado')return`<div class="ticket called" ${act('go','turnos')}><div class="n num">${f.num}</div><div class="k">${esc(n.nombre)}</div><div class="big">Es tu turno</div><div class="sm">Pasá con ${esc(first(pro(f.pro).nombre))}</div></div>`;
+  return`<div class="ticket" ${act('go','turnos')}><div class="n num">${f.num}</div><div class="k">Tu turno en ${esc(n.nombre)}</div><div class="big">${a===0?'Sos el siguiente':a===1?'Hay 1 persona antes':`Hay ${a} personas antes`}</div><div class="sm">Espera aproximada ${wait(n.id,a)} min</div></div>`;
+}
+function bizCard(n){
+  const r=negRt(n.id),w=waiting(n.id).length,fav=hasAcct()&&me().favs.includes(n.id);
+  return`<div class="item biz" role="button" tabindex="0" ${act('openNeg',n.id)}>
+    <div class="mono" style="background:${n.color}">${ini(n.nombre)}</div>
+    <div class="body"><div class="name">${esc(n.nombre)}</div>
+      <div class="meta">${rtTxt(r)}<span>${CAT[n.cat]}</span><span>${esc(n.zona)}</span></div>
+      <div class="meta">${isOpen(n)?'<span class="tag g">Abierto</span>':'<span class="tag">Cerrado</span>'}${n.fila?`<span class="num">${w} en fila, unos ${wait(n.id,w)} min</span>`:'<span>Con cita</span>'}</div>
+    </div>
+    ${hasAcct()?`<button class="fav" ${act('toggleFav',n.id)} aria-pressed="${fav}" aria-label="${fav?'Quitar de favoritos':'Guardar en favoritos'}">${svg('heart',fav)}</button>`:''}
+  </div>`;
+}
+function cInicio(){
+  const c=me(),t=myTurn(),ci=myCitas()[0],pr=toRate()[0],pg=myPending();
+  let ns=D.negocios.filter(n=>n.estado==='activo');
+  if(UI.cat==='abierto')ns=ns.filter(isOpen);else if(UI.cat!=='todos')ns=ns.filter(n=>n.cat===UI.cat);
+  if(UI.q)ns=ns.filter(n=>(n.nombre+' '+n.zona+' '+CAT[n.cat]+' '+servsOf(n.id).map(s=>s.nombre).join(' ')).toLowerCase().includes(UI.q.toLowerCase()));
+  ns.sort((a,b)=>((hasAcct()&&c.favs.includes(b.id))-(hasAcct()&&c.favs.includes(a.id)))||negRt(b.id).v-negRt(a.id).v);
+  const ch=(k,l)=>`<button class="chip" aria-pressed="${UI.cat===k}" ${act('setCat',k)}>${l}</button>`;
+  return`<div class="title"><h1>${c?'Hola, '+esc(first(c.nombre)):'Reservá sin hacer fila'}</h1><p>Barberías, salones, estilistas y uñas cerca de vos.</p></div>
+  ${pg.map(v=>`<div class="panel ${v.pago.estado==='rechazado'?'bad':'warn'}"><b>${v.pago.estado==='rechazado'?'Tu comprobante fue rechazado':'Falta tu comprobante de pago'}</b><span class="sm">${esc(serv(v.serv).nombre)} en ${esc(neg(v.neg).nombre)}, <span class="num">${L(v.monto)}</span>.${v.pago.estado==='rechazado'&&v.pago.motivo?' Motivo: '+esc(v.pago.motivo):''}</span><div><button class="btn ink s" ${act('openUpload',v.id)}>Subir comprobante</button></div></div>`).join('')}
+  ${t?ticket(t):''}
+  ${ci&&!t?`<div class="panel"><div class="sec-h"><h2>Tu próxima cita</h2><span class="tag a">${fLbl(ci.fecha)}</span></div><div class="item" style="padding:0"><div class="mono s" style="background:${neg(ci.neg).color}">${ini(neg(ci.neg).nombre)}</div><div class="body"><div class="l1">${h12(ci.hora)}, ${esc(serv(ci.serv).nombre)}</div><div class="l2">Con ${esc(pro(ci.pro).nombre)} en ${esc(neg(ci.neg).nombre)}</div></div></div></div>`:''}
+  ${pr?`<div class="panel soft"><b>¿Qué tal te fue en ${esc(neg(pr.neg).nombre)}?</b><span class="sm">${esc(serv(pr.serv).nombre)} con ${esc(pro(pr.pro).nombre)}, ${fLbl(pr.fecha).toLowerCase()}.</span><div><button class="btn ink s" ${act('openRate',pr.id)}>Calificar</button></div></div>`:''}
+  <label class="search">${svg('search')}<input id="q" data-i="search" placeholder="Buscar negocio o servicio" value="${esc(UI.q)}" autocomplete="off"></label>
+  <div class="chips">${ch('todos','Todos')}${ch('barberia','Barberías')}${ch('salon','Salones')}${ch('estilista','Estilistas')}${ch('unas','Uñas')}${ch('abierto','Abierto ahora')}</div>
+  <div class="list" id="bizList">${ns.map(bizCard).join('')||'<div class="empty">No encontramos negocios con esa búsqueda.</div>'}</div>`;
+}
+function rNegDetalle(id){
+  const n=neg(id),r=negRt(id),w=waiting(id).length,t=myTurn();
+  const tb=(k,l)=>`<button class="chip" aria-pressed="${UI.negTab===k}" ${act('negTab',k)}>${l}</button>`;
+  let body='';
+  if(UI.negTab==='servicios')body=`<div class="list">${servsOf(id).map(s=>`<div class="item"><div class="body"><div class="l1">${esc(s.nombre)}</div><div class="l2 num">${s.dur} min</div></div><b class="num">${L(s.precio)}</b><button class="btn s" ${act('reservar',id,s.id)}>Reservar</button></div>`).join('')}</div>`;
+  if(UI.negTab==='equipo')body=`<div class="list">${prosOf(id).map(p=>`<div class="item"><div class="av">${ini(p.nombre)}</div><div class="body"><div class="l1">${esc(p.nombre)}</div><div class="l2">${esc(p.rol)}, ${rtTxt(proRt(p.id),5)}</div></div><button class="btn s" ${act('reservar',id,'',p.id)}>Reservar</button></div>`).join('')}</div><p class="xs faint">El promedio de cada profesional aparece desde 5 calificaciones.</p>`;
+  if(UI.negTab==='resenas'){const qs=D.cals.filter(q=>q.neg===id&&q.txt).sort((a,b)=>b.fecha.localeCompare(a.fecha));body=`<div class="list">${qs.map(review).join('')||'<div class="empty">Todavía no hay comentarios.</div>'}</div>`;}
+  if(UI.negTab==='puntos'){
+    if(!hasAcct())body=`<div class="panel soft"><b>Ganá puntos en cada visita</b><span class="sm">Con una cuenta sumás 1 punto por cada ${L(n.lpp)} y los canjeás por servicios gratis.</span><div><button class="btn ink s" ${act('signup')}>Crear mi cuenta</button></div></div>`;
+    else{const pts=ptsOf(D.me,id),nx=n.recompensas.find(x=>x.pts>pts);
+    body=`<div class="panel"><div class="sec-h"><h2>Tus puntos aquí</h2><b class="num" style="font-size:24px">${pts}</b></div>${nx?`<div class="bar"><i style="width:${Math.min(100,pts/nx.pts*100)}%"></i></div><p class="sm muted num">Te faltan ${nx.pts-pts} para ${esc(nx.nombre.toLowerCase())}.</p>`:''}<p class="sm">1 punto por cada ${L(n.lpp)}. Si un amigo viene con tu código, ganan ${n.ptsRef} puntos cada uno.</p></div>`;}
+    body+=`<div class="list">${n.recompensas.map(x=>`<div class="item"><div class="body"><div class="l1">${esc(x.nombre)}</div><div class="l2 num">${x.pts} puntos</div></div></div>`).join('')||'<div class="empty">Este negocio aún no tiene recompensas.</div>'}</div>`;
+  }
+  let fb='';
+  if(n.fila){
+    if(t&&t.neg===id)fb=`<button class="btn full" ${act('go','turnos')}>Ver mi turno, número ${t.num}</button>`;
+    else if(t)fb=`<button class="btn full" disabled>Ya tenés turno en ${esc(neg(t.neg).nombre)}</button>`;
+    else if(n.filaCasa)fb=`<button class="btn full" ${act('tomarTurno',id,'casa')}>Tomar turno desde aquí</button>`;
+    else fb=`<div class="panel" style="padding:12px"><span class="sm muted">Aquí el turno se toma en el local, escaneando el código de la puerta.</span><div><button class="btn s" ${act('tomarTurno',id,'local')}>Simular escaneo del código</button></div></div>`;
+  }
+  return`<button class="link" style="align-self:flex-start" ${act('closeNeg')}>‹ Volver</button>
+  <div class="sec">
+    <div style="display:flex;gap:14px;align-items:center"><div class="mono" style="background:${n.color};width:56px;height:56px;font-size:19px">${ini(n.nombre)}</div><div style="min-width:0;display:flex;flex-direction:column;gap:3px"><h1 style="font-size:23px;font-weight:800">${esc(n.nombre)}</h1><div class="meta">${rtTxt(r)}<span>${CAT[n.cat]}</span></div></div></div>
+    <div class="sm muted">${esc(n.direccion)}, ${esc(n.zona)}<br>Hoy ${horaHoy(n)} ${isOpen(n)?'<span class="tag g">Abierto</span>':'<span class="tag">Cerrado</span>'}${n.fila?`<br><span class="num">${w} en fila, espera de unos ${wait(id,w)} min</span>`:''}</div>
+    <div style="display:flex;flex-direction:column;gap:8px"><button class="btn ink full" ${act('reservar',id)}>Reservar cita</button>${fb}</div>
+  </div>
+  <div class="chips">${tb('servicios','Servicios')}${tb('equipo','Equipo')}${tb('resenas','Reseñas')}${tb('puntos','Puntos')}</div>
+  ${body}`;
+}
+function review(q){
+  return`<div class="item top-al"><div class="av">${ini(cli(q.cli)?.nombre||'?')}</div><div class="body" style="gap:4px"><div class="l1">${esc(first(cli(q.cli)?.nombre||'Cliente'))} <span class="star sm">${stars(q.en)}</span></div><div class="l2">Atendida por ${esc(pro(q.pro)?.nombre)}, ${fLbl(q.fecha).toLowerCase()}</div><div>${esc(q.txt)}</div>${q.resp?`<div class="reply"><b>Respuesta del negocio:</b> ${esc(q.resp)}</div>`:''}</div></div>`;
+}
+/* Datos de quien no tiene cuenta */
+const guestFields=()=>me()?'':`<div class="panel"><b>Tus datos</b><span class="sm muted">Para avisarte por WhatsApp. No necesitás cuenta.</span><div class="two"><div class="f"><label for="gN">Nombre</label><input id="gN" data-m="gNombre" value="${esc(F.gNombre||'')}" autocomplete="name"></div><div class="f"><label for="gT">WhatsApp</label><input id="gT" data-m="gTel" inputmode="tel" value="${esc(F.gTel||'')}" placeholder="9999-9999"></div></div></div>`;
+function ensureGuest(){
+  if(me())return true;
+  if(!F.gNombre||F.gNombre.trim().length<3){toast('Escribí tu nombre');return false;}
+  if(String(F.gTel||'').replace(/\D/g,'').length<8){toast('Escribí tu WhatsApp de 8 dígitos');return false;}
+  const c={id:uid('c'),nombre:F.gNombre.trim(),tel:F.gTel,ref:'',cuenta:false,notas:{},favs:[]};D.clientes.push(c);D.me=c.id;return true;
+}
+function tomarTurno(n,modo){
+  F={neg:n,serv:servsOf(n)[0].id,pro:'',casa:modo==='casa'};
+  openSheet(()=>{const nn=neg(n);return`${head('Tomar turno')}<p class="muted">${esc(nn.nombre)}, ${waiting(n).length} personas en fila</p>
+  <div class="f"><label for="ttS">Servicio</label><select id="ttS" data-m="serv">${servsOf(n).map(x=>`<option value="${x.id}" ${x.id===F.serv?'selected':''}>${esc(x.nombre)}, ${L(x.precio)}</option>`).join('')}</select></div>
+  <div class="f"><label for="ttP">Con quién</label><select id="ttP" data-m="pro"><option value="">El primero que esté libre</option>${prosOf(n).map(p=>`<option value="${p.id}" ${p.id===F.pro?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></div>
+  ${guestFields()}
+  <p class="sm muted">${hasAcct()?'Te avisamos con una notificación cuando te falten 2 y cuando sea tu turno.':'Te avisamos por WhatsApp cuando sea tu turno.'}</p>
+  <button class="btn ink full" ${act('confirmTurno')}>Tomar el turno ${nn.contador}</button>`;});
+}
+function confirmTurno(){
+  if(!ensureGuest())return;
+  const n=neg(F.neg);const f={id:uid('f'),neg:n.id,num:n.contador++,cli:D.me,nombre:'',pro:F.pro||null,serv:F.serv,estado:'esperando',hora:m2h(nowMin()),casa:F.casa,av:false};
+  D.fila.push(f);f.av=ahead(f)<=2;closeSheet();
+  notify(D.me,`Turno ${f.num} en ${n.nombre}`,`Hay ${ahead(f)} antes que vos. Te avisamos cuando te falten 2.`);
+  if(!hasAcct())toast('Listo, tenés el turno '+f.num);
+  UI.negView=null;V.cliente='turnos';render();scrollTo(0,0);
+}
+
+/* ---- Reservar ---- */
+let R=null;
+function reservar(n,s,p,rep){
+  const c=rep?D.citas.find(x=>x.id===rep):null;
+  R={neg:n,serv:s||(c?c.serv:null),pro:p!==undefined&&p!==''?p:(c?c.pro:undefined),fecha:null,slot:null,rep:rep||null};
+  if(p===''&&!rep)R.pro=undefined;
+  R.step=!R.serv?1:R.pro===undefined?2:3;
+  if(R.step===3)R.fecha=firstDay();
+  F={};openSheet(rReserva);
+}
+function firstDay(){for(let i=0;i<14;i++){const f=addDays(T,i);if(slots(R.neg,f,serv(R.serv).dur,R.pro||null,R.rep).length)return f;}return T;}
+function rReserva(){
+  const n=neg(R.neg),st=R.step;
+  const steps=`<div class="steps">${[1,2,3,4].map(i=>`<i class="${i<=st?'on':''}"></i>`).join('')}</div>`;
+  const back=st>1?`<button class="link" style="align-self:flex-start" ${act('rBack')}>‹ Atrás</button>`:'';
+  if(st===1)return`${head(R.rep?'Cambiar cita':'Reservar cita')}${steps}<p class="muted">${esc(n.nombre)}. ¿Qué te vas a hacer?</p><div class="opts">${servsOf(n.id).map(s=>`<button class="opt" aria-pressed="${R.serv===s.id}" ${act('rServ',s.id)}><b>${esc(s.nombre)}</b><span class="sm muted num">${L(s.precio)}, ${s.dur} min</span></button>`).join('')}</div>`;
+  if(st===2)return`${head('¿Con quién?')}${steps}${back}<div class="opts"><button class="opt" aria-pressed="${R.pro===null}" ${act('rPro','')}><b>Cualquiera</b><span class="sm muted">El primero libre</span></button>${prosOf(n.id).map(p=>`<button class="opt" aria-pressed="${R.pro===p.id}" ${act('rPro',p.id)}><b>${esc(first(p.nombre))}</b><span class="sm muted">${esc(p.rol)}</span><span class="sm">${rtTxt(proRt(p.id),5)}</span></button>`).join('')}</div>`;
+  if(st===3){
+    const s=serv(R.serv),days=[...Array(10)].map((_,i)=>addDays(T,i)),sl=slots(n.id,R.fecha,s.dur,R.pro||null,R.rep);
+    return`${head('¿Cuándo?')}${steps}${back}<div class="days">${days.map(f=>{const d=new Date(f+'T12:00:00');return`<button class="day" ${n.horario[d.getDay()]?'':'disabled'} aria-pressed="${R.fecha===f}" ${act('rDia',f)}>${f===T?'Hoy':DIAS[d.getDay()]}<b class="num">${d.getDate()}</b></button>`;}).join('')}</div>
+    ${sl.length?`<div class="slots">${sl.map(x=>`<button class="slot" ${act('rSlot',x.t,x.pro)}>${h12(m2h(x.t))}</button>`).join('')}</div>`:'<div class="empty">No quedan horas libres este día. Probá otro.</div>'}`;
+  }
+  const s=serv(R.serv),p=pro(R.slot.pro),pts=Math.floor(s.precio/n.lpp);
+  return`${head('Confirmá tu cita')}${steps}${back}
+  <div class="panel"><div class="item" style="padding:0"><div class="mono s" style="background:${n.color}">${ini(n.nombre)}</div><div class="body"><div class="l1">${esc(n.nombre)}</div><div class="l2">${esc(n.direccion)}</div></div></div><div class="hr"></div>
+  <div class="two"><div><div class="xs faint">Servicio</div><b>${esc(s.nombre)}</b></div><div><div class="xs faint">Con</div><b>${esc(p.nombre)}</b></div><div><div class="xs faint">Cuándo</div><b>${fLbl(R.fecha)}, ${h12(m2h(R.slot.t))}</b></div><div><div class="xs faint">Precio</div><b class="num">${L(s.precio)}</b></div></div>
+  ${hasAcct()?`<span class="tag a" style="align-self:flex-start">Ganás ${pts} puntos al pagar</span>`:''}</div>
+  ${guestFields()}
+  ${!me()?`<p class="sm muted">¿Querés ganar ${pts} puntos con esta cita? <button class="link" ${act('signup')}>Creá tu cuenta</button></p>`:''}
+  <p class="sm muted">Pagás en el local, en efectivo o por transferencia.</p>
+  <button class="btn ink full" ${act('rConfirm')}>${R.rep?'Cambiar mi cita':'Confirmar cita'}</button>`;
+}
+function rConfirm(){
+  if(!ensureGuest())return;
+  if(R.rep)D.citas.find(c=>c.id===R.rep).estado='cancelada';
+  const c={id:uid('ci'),neg:R.neg,cli:D.me,pro:R.slot.pro,serv:R.serv,fecha:R.fecha,hora:m2h(R.slot.t),estado:'confirmada'};
+  D.citas.push(c);closeSheet();
+  notify(D.me,R.rep?'Cita cambiada':'Cita confirmada',`${serv(c.serv).nombre} con ${first(pro(c.pro).nombre)}, ${fLbl(c.fecha).toLowerCase()} a las ${h12(c.hora)}.`);
+  if(!hasAcct())toast('Cita confirmada');
+  R=null;UI.negView=null;V.cliente='turnos';render();scrollTo(0,0);
+}
+
+function cTurnos(){
+  const t=myTurn(),cs=myCitas(),pg=myPending();
+  const hist=D.me?D.visitas.filter(v=>v.cli===D.me).sort((a,b)=>(b.fecha+b.hora).localeCompare(a.fecha+a.hora)):[];
+  const pagoTag=v=>({pagado:'',por_comprobante:'<span class="tag w">Falta comprobante</span>',por_confirmar:'<span class="tag a">Pago en revisión</span>',rechazado:'<span class="tag r">Comprobante rechazado</span>'})[v.pago.estado];
+  return`<div class="title"><h1>Mis turnos</h1></div>
+  ${t?`${ticket(t)}<div class="row-btns"><button class="btn" ${act('askSalir',t.id)}>Salir de la fila</button></div>`:''}
+  <div class="sec"><div class="sec-h"><h2>Próximas citas</h2></div>
+  ${cs.length?`<div class="list">${cs.map(c=>`<div class="item top-al"><div class="mono s" style="background:${neg(c.neg).color}">${ini(neg(c.neg).nombre)}</div><div class="body" style="gap:8px"><div><div class="l1">${fLbl(c.fecha)}, ${h12(c.hora)}</div><div class="l2">${esc(serv(c.serv).nombre)} con ${esc(pro(c.pro).nombre)}, ${esc(neg(c.neg).nombre)}</div></div><div class="row-btns"><button class="btn s" ${act('reservar',c.neg,'','',c.id)}>Cambiar</button><button class="btn s quiet" ${act('askCancel',c.id)}>Cancelar</button></div></div></div>`).join('')}</div>`:`<div class="panel"><p class="muted">No tenés citas pendientes.</p><div><button class="btn ink" ${act('go','inicio')}>Buscar dónde reservar</button></div></div>`}</div>
+  <div class="sec"><div class="sec-h"><h2>Historial</h2></div>
+  <div class="list">${hist.map(v=>`<div class="item"><div class="body"><div class="l1">${esc(serv(v.serv).nombre)}, ${esc(neg(v.neg).nombre)}</div><div class="l2">${fLbl(v.fecha)} con ${esc(first(pro(v.pro).nombre))}, <span class="num">${L(v.monto)}</span>${v.canje?', canje de puntos':''}</div>${pagoTag(v)?`<div>${pagoTag(v)}</div>`:''}</div>${['por_comprobante','rechazado'].includes(v.pago.estado)?`<button class="btn s ink" ${act('openUpload',v.id)}>Subir</button>`:(hasAcct()&&!v.calificada&&v.pago.estado==='pagado'&&dBetween(v.fecha,T)<=7)?`<button class="btn s ink" ${act('openRate',v.id)}>Calificar</button>`:`<button class="btn s" ${act('reservar',v.neg,v.serv,v.pro)}>Repetir</button>`}</div>`).join('')||'<div class="empty">Aquí vas a ver tus visitas.</div>'}</div></div>`;
+}
+
+/* ---- Comprobante (cliente) ---- */
+function openUpload(vid){F={vid,comp:null,cuenta:null};openSheet(rUpload);}
+function rUpload(){
+  const v=D.visitas.find(x=>x.id===F.vid),n=neg(v.neg);if(!F.cuenta)F.cuenta=v.pago.cuenta||n.cuentas[0]?.id;
+  return`${head('Pagar por transferencia')}<p class="muted">${esc(serv(v.serv).nombre)} en ${esc(n.nombre)}</p>
+  <div class="panel" style="align-items:center;text-align:center;gap:2px"><span class="sm muted">Monto a transferir</span><b class="num" style="font-size:32px;letter-spacing:-.02em">${L(v.monto)}</b></div>
+  <div class="sec"><div class="sec-h"><h2>¿A qué cuenta transferiste?</h2></div>
+  <div class="list">${n.cuentas.map(c=>`<button class="item" ${act('pickCuenta',c.id)} aria-pressed="${F.cuenta===c.id}" style="${F.cuenta===c.id?'background:var(--accent-soft)':''}"><div class="bank" style="flex:1;min-width:0"><span class="ic" style="background:${BANK_COLOR[c.banco]||'#444'}">${bankAbbr(c.banco)}</span><div class="body" style="display:flex;flex-direction:column;min-width:0"><span class="l1">${esc(c.banco)}, ${esc(c.tipo.toLowerCase())}</span><span class="acct">${esc(c.numero)}</span><span class="xs muted">${esc(c.titular)}</span></div></div><span class="btn s" ${act('copy',c.numero)}>Copiar</span></button>`).join('')}</div></div>
+  <label class="upload" for="upf">${F.comp?`<img class="proof" src="${F.comp}" alt="Comprobante subido">`:`<span style="width:28px;height:28px;color:var(--ink-2)">${svg('up')}</span><b>Subir foto del comprobante</b><span class="sm muted">Captura de tu app del banco</span>`}<input id="upf" type="file" accept="image/*" data-file="comp"></label>
+  ${F.comp?'':`<button class="link" style="align-self:center" ${act('demoProof')}>Usar un comprobante de ejemplo</button>`}
+  <p class="sm muted">El negocio revisa que el dinero haya entrado. Tus puntos se suman cuando lo confirma.</p>
+  <button class="btn ink full" ${F.comp?'':'disabled'} ${act('sendProof')}>Enviar comprobante</button>`;
+}
+function sendProof(){const v=D.visitas.find(x=>x.id===F.vid);Object.assign(v.pago,{estado:'por_confirmar',cuenta:F.cuenta,comp:F.comp,subido:'cliente',motivo:''});closeSheet();toast('Comprobante enviado. El negocio lo va a revisar.');render();}
+
+/* ---- Calificar ---- */
+function openRate(vid){F={vid,en:0,ep:0,txt:''};openSheet(rRate);}
+function rRate(){
+  const v=D.visitas.find(x=>x.id===F.vid),n=neg(v.neg),p=pro(v.pro);
+  const st=k=>`<div class="stars-in">${[1,2,3,4,5].map(i=>`<button class="${F[k]>=i?'on':''}" aria-label="${i} de 5" ${act('setStar',k,i)}>★</button>`).join('')}</div>`;
+  return`${head('Calificá tu visita')}<p class="muted">${esc(serv(v.serv).nombre)}, ${fLbl(v.fecha).toLowerCase()}</p>
+  <div class="panel"><b>${esc(n.nombre)}</b><span class="sm muted">Limpieza, puntualidad y trato</span>${st('en')}</div>
+  <div class="panel"><b>${esc(p.nombre)}</b><span class="sm muted">Cómo quedó tu ${esc(serv(v.serv).nombre.toLowerCase())}</span>${st('ep')}</div>
+  <div class="f"><label for="rt">Comentario, si querés</label><textarea id="rt" data-m="txt" placeholder="Contale a otros cómo te fue">${esc(F.txt)}</textarea></div>
+  <button class="btn ink full" ${F.en&&F.ep?'':'disabled'} ${act('sendRate')}>Publicar calificación</button>`;
+}
+function sendRate(){
+  const v=D.visitas.find(x=>x.id===F.vid);v.calificada=true;
+  D.cals.push({id:uid('q'),visita:v.id,neg:v.neg,pro:v.pro,cli:D.me,en:F.en,ep:F.ep,txt:(F.txt||'').trim(),fecha:T,resp:'',reportada:false,nueva:true});
+  D.notifs.filter(x=>x.cli===D.me&&x.t.startsWith('¿Qué tal')).forEach(x=>x.leida=true);
+  closeSheet();toast('Gracias, tu calificación ya está publicada');render();
+}
+
+function cPuntos(){
+  if(!hasAcct())return`<div class="title"><h1>Puntos</h1><p>Ganá puntos en cada visita y canjealos por servicios gratis.</p></div>
+  <div class="panel soft"><b>Necesitás una cuenta para sumar puntos</b><span class="sm">Solo tu número de WhatsApp. Si un amigo te invita, los dos ganan puntos en tu primera visita.</span><div><button class="btn ink" ${act('signup')}>Crear mi cuenta</button></div></div>`;
+  const c=me(),ids=[...new Set(D.puntos.filter(m=>m.cli===D.me).map(m=>m.neg))];
+  const movs=D.puntos.filter(m=>m.cli===D.me).slice().reverse().slice(0,8);
+  return`<div class="title"><h1>Mis puntos</h1><p>Los canjeás al pagar, en cada negocio.</p></div>
+  ${ids.map(id=>{const n=neg(id),pts=ptsOf(D.me,id),nx=n.recompensas.find(x=>x.pts>pts),ok=n.recompensas.filter(x=>x.pts<=pts);
+  return`<div class="panel"><div class="item" style="padding:0"><div class="mono s" style="background:${n.color}">${ini(n.nombre)}</div><div class="body"><div class="l1">${esc(n.nombre)}</div><div class="l2">1 punto por cada ${L(n.lpp)}</div></div><b class="num" style="font-size:24px">${pts}</b></div>
+  ${nx?`<div class="bar"><i style="width:${Math.min(100,pts/nx.pts*100)}%"></i></div><p class="sm muted num">Te faltan ${nx.pts-pts} para ${esc(nx.nombre.toLowerCase())}.</p>`:''}
+  ${ok.length?`<div class="meta">${ok.map(x=>`<span class="tag g">${esc(x.nombre)}</span>`).join('')}</div><p class="xs faint">Pedilo al pagar y se descuenta de tus puntos.</p>`:''}</div>`;}).join('')||'<div class="panel"><p class="muted">Todavía no tenés puntos. Los ganás cada vez que pagás una visita.</p></div>'}
+  <div class="panel soft"><div class="sec-h"><h2>Invitá a un amigo</h2></div><p class="sm">Cuando tu amigo pague su primera visita con tu código, los dos ganan puntos en ese negocio.</p>
+  <div style="display:flex;gap:8px;align-items:center"><span class="tn" style="flex:1;font-size:21px;letter-spacing:.06em;border-color:var(--accent);color:var(--accent)">${esc(c.ref)}</span><button class="btn s" ${act('copy',c.ref)}>Copiar</button></div>
+  <a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Reservá en Somar Turno con mi código '+c.ref+' y ganamos puntos los dos: https://turno.somarlabs.online')}">Compartir por WhatsApp</a>
+  <p class="xs muted num">${D.clientes.filter(x=>x.referidoPor===D.me).length} amigos han usado tu código.</p></div>
+  <div class="sec"><div class="sec-h"><h2>Movimientos</h2></div><div class="list">${movs.map(m=>`<div class="item"><div class="body"><div class="l1">${esc(m.motivo)}</div><div class="l2">${esc(neg(m.neg).nombre)}, ${fLbl(m.fecha).toLowerCase()}</div></div><b class="num" style="color:${m.pts<0?'var(--bad)':'var(--good)'}">${m.pts>0?'+':''}${m.pts}</b></div>`).join('')||'<div class="empty">Sin movimientos.</div>'}</div></div>`;
+}
+
+function cPerfil(){
+  const c=me();
+  if(!hasAcct())return`<div class="title"><h1>${c?esc(c.nombre):'Sin cuenta'}</h1><p>${c?'Estás usando la app sin cuenta.':'Podés reservar y tomar turno sin crear cuenta.'}</p></div>
+  <div class="panel soft"><b>Con una cuenta ganás más</b><div class="sm">Puntos en cada visita, historial de tus servicios, avisos en el celular cuando se acerca tu turno y calificar a quien te atendió.</div><div><button class="btn ink" ${act('signup')}>Crear mi cuenta</button></div></div>
+  <div class="list"><button class="item" ${act('backToCarlos')}><div class="body"><div class="l1">Volver a Carlos</div><div class="l2">El cliente de prueba con cuenta e historial</div></div><span class="chev">›</span></button></div>`;
+  const ns=D.notifs.filter(n=>n.cli===D.me);setTimeout(()=>{ns.forEach(n=>n.leida=true);renderTabs();},1500);
+  return`<div class="panel"><div class="item" style="padding:0"><div class="av" style="width:52px;height:52px;font-size:18px">${ini(c.nombre)}</div><div class="body"><div class="l1" style="font-size:19px">${esc(c.nombre)}</div><div class="l2 num">+504 ${esc(c.tel)}</div></div></div></div>
+  <div class="panel"><b>Instalá la app</b><span class="sm muted">En Android, tocá Instalar cuando el navegador te lo ofrezca. En iPhone: Compartir y luego Agregar a inicio. Así te llegan los avisos de tu turno.</span></div>
+  <div class="sec"><div class="sec-h"><h2>Notificaciones</h2></div><div class="list">${ns.slice(0,10).map(n=>`<div class="item top-al"><div class="body"><div class="l1">${esc(n.t)} ${n.leida?'':'<span class="tag r">Nueva</span>'}</div><div class="l2">${esc(n.x)}</div></div></div>`).join('')||'<div class="empty">Sin notificaciones.</div>'}</div></div>
+  <div class="sec"><div class="sec-h"><h2>Probar la demo</h2></div><div class="list">
+    <button class="item" ${act('signupNew')}><div class="body"><div class="l1">Crear una cuenta nueva</div><div class="l2">Código por WhatsApp y código de amigo</div></div><span class="chev">›</span></button>
+    <button class="item" ${act('useGuest')}><div class="body"><div class="l1">Usar la app sin cuenta</div><div class="l2">Reservar y tomar turno solo con nombre y WhatsApp</div></div><span class="chev">›</span></button>
+    ${D.me!=='c1'?`<button class="item" ${act('backToCarlos')}><div class="body"><div class="l1">Volver a Carlos</div></div><span class="chev">›</span></button>`:''}
+  </div></div>`;
+}
+
+/* ---- Crear cuenta ---- */
+function signup(fresh){
+  const c=fresh?null:me();
+  F={step:1,tel:c?c.tel:'',code:String(100000+Math.floor(Math.random()*899999)),codeIn:'',nombre:c?c.nombre:'',ref:'',fresh};
+  openSheet(rSignup);
+}
+function rSignup(){
+  if(F.step===1)return`${head('Crear tu cuenta')}<p class="muted">Solo tu número. Sin contraseñas.</p><div class="f"><label for="sTel">Tu WhatsApp</label><input id="sTel" data-m="tel" inputmode="tel" placeholder="9999-9999" value="${esc(F.tel)}"></div><button class="btn ink full" ${act('suStep2')}>Mandarme el código</button>`;
+  if(F.step===2)return`${head('Revisá tu WhatsApp')}<p class="muted">En la app real el código llega por WhatsApp. En la demo lo ves aquí:</p><div class="wa-b">Tu código de Somar Turno es <b>${F.code}</b>. No lo compartás con nadie.</div><div class="f"><label for="sCode">Código de 6 dígitos</label><input id="sCode" data-m="codeIn" inputmode="numeric" maxlength="6" class="num" value="${esc(F.codeIn)}"></div><button class="btn ink full" ${act('suStep3')}>Verificar</button>`;
+  return`${head('Tus datos')}<div class="f"><label for="sNom">Nombre y apellido</label><input id="sNom" data-m="nombre" value="${esc(F.nombre)}" autocomplete="name"></div><div class="f"><label for="sRef">Código de un amigo</label><input id="sRef" data-m="ref" placeholder="Ej. CARLOS7" value="${esc(F.ref)}"><span class="hint">Opcional. Si lo ponés, ganan puntos los dos en tu primera visita.</span></div><button class="btn ink full" ${act('suFinish')}>Crear mi cuenta</button>`;
+}
+function suFinish(){
+  if(F.nombre.trim().length<3){toast('Escribí tu nombre');return;}
+  const code=F.ref.trim().toUpperCase(),ref=code?D.clientes.find(c=>c.ref===code&&c.cuenta):null;
+  if(code&&!ref){toast('Ese código de amigo no existe');return;}
+  const base=F.nombre.trim().split(' ')[0].toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').slice(0,6);
+  let c=F.fresh?null:me();
+  if(c){Object.assign(c,{cuenta:true,nombre:F.nombre.trim(),tel:F.tel,ref:base+Math.floor(Math.random()*90+10),referidoPor:ref?ref.id:null,refPagado:false});}
+  else{c={id:uid('c'),nombre:F.nombre.trim(),tel:F.tel,ref:base+Math.floor(Math.random()*90+10),cuenta:true,referidoPor:ref?ref.id:null,refPagado:false,notas:{},favs:[]};D.clientes.push(c);D.me=c.id;}
+  closeSheet();V.cliente='inicio';UI.negView=null;render();scrollTo(0,0);
+  notify(c.id,'Bienvenido a Somar Turno',ref?`Usaste el código de ${first(ref.nombre)}. En tu primera visita pagada ganan puntos los dos.`:'Ya sumás puntos en cada visita.');
+}
+
+/* =====================================================================
+   NEGOCIO
+   ===================================================================== */
+const ON=()=>neg(D.ownerNeg);
+function rNegocio(){
+  const sel=`<div class="chips">${D.negocios.filter(n=>n.estado==='activo').map(n=>`<button class="chip" aria-pressed="${n.id===D.ownerNeg}" ${act('pickNeg',n.id)}>${esc(n.nombre)}</button>`).join('')}</div>`;
+  if(V.negocio==='mas'&&MAS)return masSub(MAS);
+  return sel+({hoy:nHoy,agenda:nAgenda,clientes:nClientes,caja:nCaja,mas:nMas})[V.negocio]();
+}
+function citaRow(c,p){
+  const st={reservada:['a','Reservada'],confirmada:['g','Confirmada'],atendida:['','Atendida'],novino:['r','No vino'],cancelada:['','Cancelada']}[c.estado];
+  const cl=cli(c.cli),s=serv(c.serv),nota=cl.notas[c.neg];
+  const acts=['reservada','confirmada'].includes(c.estado)?`<div class="row-btns"><button class="btn s good" ${act('cobrar','cita',c.id,p||'')}>Atendido</button><button class="btn s" ${act('noVinoCita',c.id)}>No vino</button><a class="btn s wa" target="_blank" rel="noopener" href="${waLink(cl.tel,`Hola ${first(cl.nombre)}, te recordamos tu cita en ${neg(c.neg).nombre}: ${fLbl(c.fecha).toLowerCase()} a las ${h12(c.hora)} con ${first(pro(c.pro).nombre)}.`)}">WhatsApp</a></div>`:'';
+  return`<div class="item top-al"><b class="num" style="min-width:66px;font-size:15px">${h12(c.hora)}</b><div class="body" style="gap:8px"><div><div class="l1">${esc(cl.nombre)} <span class="tag ${st[0]}">${st[1]}</span>${cl.cuenta?'':' <span class="tag w">Sin cuenta</span>'}</div><div class="l2">${esc(s.nombre)}, ${p?'':esc(first(pro(c.pro).nombre))+', '}<span class="num">${L(s.precio)}</span></div>${nota&&p?`<div class="note">${esc(nota)}</div>`:''}</div>${acts}</div></div>`;
+}
+function filaRow(f,p){
+  const c=f.cli?cli(f.cli):null;
+  const tg=!c?'<span class="tag">En el local</span>':!c.cuenta?'<span class="tag w">Sin cuenta</span>':f.casa?'<span class="tag a">Desde su casa</span>':'<span class="tag">En el local</span>';
+  const mins=Math.max(0,nowMin()-h2m(f.hora));
+  let a='';
+  if(f.estado==='esperando')a=`<button class="btn s ink" ${p?act('llamar',f.id,p):act('openLlamar',f.id)}>Llamar</button>${p?'':`<button class="btn s quiet" ${act('noVinoFila',f.id)}>No vino</button>`}`;
+  if(f.estado==='llamado')a=`<button class="btn s good" ${act('cobrar','fila',f.id,p||'')}>Atendido</button><button class="btn s quiet" ${act('noVinoFila',f.id)}>No vino</button>${c?`<a class="btn s wa" target="_blank" rel="noopener" href="${waLink(c.tel,`Hola ${first(c.nombre)}, ya es tu turno ${f.num} en ${neg(f.neg).nombre}. Te esperamos.`)}">WhatsApp</a>`:''}`;
+  return`<div class="item top-al"><span class="tn ${f.estado==='llamado'?'on':''}">${f.num}</span><div class="body" style="gap:8px"><div><div class="l1">${esc(fName(f))} ${tg}</div><div class="l2">${esc(serv(f.serv).nombre)}${f.estado==='llamado'?`, con ${esc(first(pro(f.pro).nombre))}`:`${f.pro?', prefiere a '+esc(first(pro(f.pro).nombre)):''}, espera ${mins} min`}</div></div><div class="row-btns">${a}</div></div></div>`;
+}
+function pcRow(v){
+  const cu=neg(v.neg).cuentas.find(c=>c.id===v.pago.cuenta);
+  return`<button class="item" ${act('openConfirm',v.id)}><div class="av">${ini(v.cli?cli(v.cli).nombre:'C')}</div><div class="body"><div class="l1">${esc(v.cli?cli(v.cli).nombre:'Cliente')}</div><div class="l2">${cu?esc(cu.banco)+', ':''}${esc(serv(v.serv).nombre)}</div></div><b class="num">${L(v.monto)}</b><span class="chev">›</span></button>`;
+}
+function nHoy(){
+  const n=ON(),w=waiting(n.id),cl=called(n.id),pc=porConfirmar(n.id);
+  const cs=D.citas.filter(c=>c.neg===n.id&&c.fecha===T&&c.estado!=='cancelada').sort((a,b)=>a.hora.localeCompare(b.hora));
+  const pend=cs.filter(c=>['reservada','confirmada'].includes(c.estado)).length;
+  const cobrado=D.visitas.filter(v=>v.neg===n.id&&v.fecha===T&&v.pago.estado==='pagado').reduce((a,v)=>a+v.monto,0);
+  const bad=D.cals.filter(q=>q.neg===n.id&&q.nueva&&(q.en<=2||q.ep<=2));
+  return`<div class="title"><h1>Hoy</h1><p>${CAT[n.cat]}, ${horaHoy(n)}</p></div>
+  <div class="stats"><div class="stat"><b>${n.fila?w.length:pend}</b><span>${n.fila?'En fila':'Citas pendientes'}</span></div><div class="stat"><b>${n.fila?pend:pc.length}</b><span>${n.fila?'Citas pendientes':'Pagos por revisar'}</span></div><div class="stat"><b>${L(cobrado)}</b><span>Cobrado</span></div></div>
+  ${bad.map(q=>`<div class="panel bad"><b>Calificación baja de ${esc(cli(q.cli).nombre)}</b><span class="sm">${q.en} estrellas al negocio y ${q.ep} a ${esc(first(pro(q.pro).nombre))}. ${esc(q.txt)}</span><div><button class="btn s" ${act('openMas','resenas')}>Ver y responder</button></div></div>`).join('')}
+  ${pc.length?`<div class="sec"><div class="sec-h"><h2>Transferencias por confirmar</h2><span class="tag w num">${pc.length}</span></div><div class="list">${pc.map(pcRow).join('')}</div><p class="xs faint">Revisá en tu banco que el dinero entró antes de confirmar.</p></div>`:''}
+  ${n.fila?`<div class="sec"><div class="sec-h"><h2>Fila</h2><div class="row-btns"><button class="btn s" ${act('openTV')}>Pantalla</button><button class="btn s" ${act('openAddFila')}>Agregar</button></div></div><div class="list">${[...cl,...w].map(f=>filaRow(f)).join('')||'<div class="empty">No hay nadie en la fila.</div>'}</div></div>`:''}
+  <div class="sec"><div class="sec-h"><h2>Citas de hoy</h2><button class="btn s" ${act('nuevaCita')}>Nueva cita</button></div><div class="list">${cs.map(c=>citaRow(c)).join('')||'<div class="empty">No hay citas hoy.</div>'}</div></div>`;
+}
+function openLlamar(fid){
+  const f=D.fila.find(x=>x.id===fid),n=neg(f.neg);
+  openSheet(()=>`${head('Llamar el turno '+f.num)}<p class="muted">${esc(fName(f))}, ${esc(serv(f.serv).nombre)}${f.pro?', prefiere a '+esc(first(pro(f.pro).nombre)):''}</p><div class="opts">${prosOf(n.id).map(p=>{const busy=called(n.id).some(x=>x.pro===p.id);return`<button class="opt" aria-pressed="${f.pro===p.id}" ${act('llamar',f.id,p.id)}><b>${esc(first(p.nombre))}</b><span class="sm muted">${busy?'Atendiendo':'Libre'}</span></button>`;}).join('')}</div>`);
+}
+function llamar(fid,pid){const f=D.fila.find(x=>x.id===fid);f.estado='llamado';f.pro=pid;f.av=true;closeSheet();notify(f.cli,`Es tu turno, número ${f.num}`,`Pasá con ${first(pro(pid).nombre)} en ${neg(f.neg).nombre}.`);checkFila(f.neg);toast(`Turno ${f.num} llamado`);render();}
+function openAddFila(){
+  const n=ON();F={nombre:'',serv:servsOf(n.id)[0].id};
+  openSheet(()=>`${head('Agregar a la fila')}<p class="muted">Para quien llegó al local sin la app.</p><div class="f"><label for="afN">Nombre</label><input id="afN" data-m="nombre" placeholder="Ej. Don Rigo" value="${esc(F.nombre)}"></div><div class="f"><label for="afS">Servicio</label><select id="afS" data-m="serv">${servsOf(n.id).map(s=>`<option value="${s.id}" ${s.id===F.serv?'selected':''}>${esc(s.nombre)}</option>`).join('')}</select></div><button class="btn ink full" ${act('addFila')}>Darle el turno ${n.contador}</button>`);
+}
+
+/* ---- Cobrar (atendido) ---- */
+function cobrar(kind,id,pfix){
+  const o=kind==='cita'?D.citas.find(x=>x.id===id):D.fila.find(x=>x.id===id);
+  F={kind,id,neg:o.neg,cli:o.cli,pro:pfix||o.pro||prosOf(o.neg)[0].id,serv:o.serv,monto:null,metodo:'efectivo',via:null,canje:'',cuenta:neg(o.neg).cuentas[0]?.id||'',ref:'',comp:null,pfix:!!pfix};
+  const c=F.cli?cli(F.cli):null;F.via=c&&c.cuenta?'cliente':'yo';
+  openSheet(rCobro);
+}
+const cobroMonto=()=>F.canje?0:(F.monto!==null?F.monto:serv(F.serv).precio);
+function rCobro(){
+  const n=neg(F.neg),c=F.cli?cli(F.cli):null,acct=c&&c.cuenta,pts=acct?ptsOf(c.id,n.id):0,disp=n.recompensas.filter(r=>r.pts<=pts),m=cobroMonto();
+  const earn=acct&&!F.canje?Math.floor(m/n.lpp):0,refB=acct&&c.referidoPor&&!c.refPagado;
+  const tr=F.metodo==='transferencia';
+  let btn='Cobrar '+L(m);
+  if(tr&&F.via==='cliente')btn='Pedir comprobante al cliente';
+  if(tr&&F.via==='yo')btn='Confirmar transferencia de '+L(m);
+  return`${head('Cobrar')}<p class="muted">${c?esc(c.nombre)+(acct?`, ${pts} puntos aquí`:', sin cuenta'):'Cliente sin registro'}</p>
+  <div class="f"><label for="kS">Servicio</label><select id="kS" data-m="serv" data-redraw="1">${servsOf(n.id).map(s=>`<option value="${s.id}" ${s.id===F.serv?'selected':''}>${esc(s.nombre)}, ${L(s.precio)}</option>`).join('')}</select></div>
+  ${F.pfix?'':`<div class="f"><label for="kP">Lo atendió</label><select id="kP" data-m="pro">${prosOf(n.id).map(p=>`<option value="${p.id}" ${p.id===F.pro?'selected':''}>${esc(p.nombre)}</option>`).join('')}</select></div>`}
+  ${disp.length?`<div class="f"><label for="kC">Canjear puntos</label><select id="kC" data-m="canje" data-redraw="1"><option value="">No canjear</option>${disp.map(r=>`<option value="${r.id}" ${F.canje===r.id?'selected':''}>${esc(r.nombre)}, ${r.pts} puntos</option>`).join('')}</select></div>`:''}
+  <div class="f"><label for="kM">Monto (L)</label><input id="kM" data-m="monto" data-num="1" data-redraw="1" inputmode="numeric" class="num" value="${m}" ${F.canje?'disabled':''}></div>
+  ${m>0?`<div class="seg" role="group" aria-label="Forma de pago"><button aria-pressed="${!tr}" ${act('setF','metodo','efectivo')}>Efectivo</button><button aria-pressed="${tr}" ${act('setF','metodo','transferencia')}>Transferencia</button></div>`:''}
+  ${tr&&m>0?`${acct?`<div class="seg" role="group" aria-label="Quién sube el comprobante"><button aria-pressed="${F.via==='cliente'}" ${act('setF','via','cliente')}>Lo sube el cliente</button><button aria-pressed="${F.via==='yo'}" ${act('setF','via','yo')}>Lo registro yo</button></div>`:''}
+    ${F.via==='cliente'?`<p class="sm muted">${esc(first(c.nombre))} recibe un aviso en su app con tus cuentas para subir el comprobante. El cobro queda pendiente hasta que lo confirmés.</p>`:
+    n.cuentas.length?`<div class="f"><label for="kB">Cuenta donde entró</label><select id="kB" data-m="cuenta">${n.cuentas.map(b=>`<option value="${b.id}" ${b.id===F.cuenta?'selected':''}>${esc(b.banco)}, ${esc(b.numero)}</option>`).join('')}</select></div>
+    <div class="f"><label for="kR">Referencia</label><input id="kR" data-m="ref" inputmode="numeric" value="${esc(F.ref)}" placeholder="Número de la transferencia"></div>
+    <label class="upload" for="kF">${F.comp?`<img class="proof" src="${F.comp}" alt="Comprobante">`:`<b>Foto del comprobante</b><span class="sm muted">Opcional</span>`}<input id="kF" type="file" accept="image/*" data-file="comp"></label>
+    <p class="sm muted">Confirmá solo si ya viste el dinero en tu cuenta.</p>`:`<div class="panel warn"><span class="sm">Todavía no agregaste cuentas bancarias.</span><div><button class="btn s" ${act('openMasFromSheet','cuentas')}>Agregar cuenta</button></div></div>`}`:''}
+  ${acct&&!(tr&&F.via==='cliente')?`<div class="panel soft" style="padding:12px"><span class="sm">Gana <b class="num">${earn}</b> puntos.${refB?` Es su primera visita con código de amigo: ${esc(first(c.nombre))} y ${esc(first(cli(c.referidoPor).nombre))} ganan ${n.ptsRef} puntos extra cada uno.`:''}</span></div>`:''}
+  <button class="btn good full" ${tr&&F.via==='yo'&&!n.cuentas.length?'disabled':''} ${act('doCobro')}>${btn}</button>`;
+}
+function applyPago(v){
+  const n=neg(v.neg),c=v.cli?cli(v.cli):null;v.pago.estado='pagado';
+  if(!c||!c.cuenta)return;
+  const pts=v.canje?0:Math.floor(v.monto/n.lpp);
+  if(pts)D.puntos.push({id:uid('m'),cli:c.id,neg:n.id,pts,motivo:'Visita: '+serv(v.serv).nombre,fecha:T});
+  if(c.referidoPor&&!c.refPagado){c.refPagado=true;const a=cli(c.referidoPor);
+    D.puntos.push({id:uid('m'),cli:c.id,neg:n.id,pts:n.ptsRef,motivo:'Bono por código de amigo',fecha:T});
+    D.puntos.push({id:uid('m'),cli:a.id,neg:n.id,pts:n.ptsRef,motivo:`${first(c.nombre)} usó tu código`,fecha:T});
+    notify(a.id,`Ganaste ${n.ptsRef} puntos`,`${first(c.nombre)} pagó su primera visita en ${n.nombre} con tu código.`);}
+  notify(c.id,`Gracias por tu visita a ${n.nombre}`,(pts?`Ganaste ${pts} puntos. `:'')+'¿Nos calificás? Tenés 7 días.');
+}
+function doCobro(){
+  const n=neg(F.neg),m=cobroMonto(),tr=F.metodo==='transferencia'&&m>0;
+  const v={id:uid('v'),neg:n.id,cli:F.cli,pro:F.pro,serv:F.serv,monto:m,fecha:T,hora:m2h(nowMin()),calificada:false,canje:F.canje||null,pago:{metodo:tr?'transferencia':'efectivo',estado:'pagado',cuenta:null,ref:'',comp:null}};
+  D.visitas.push(v);
+  if(F.kind==='cita')D.citas.find(x=>x.id===F.id).estado='atendida';else{const f=D.fila.find(x=>x.id===F.id);f.estado='atendido';f.pro=F.pro;checkFila(n.id);}
+  if(F.canje){const r=n.recompensas.find(x=>x.id===F.canje);D.puntos.push({id:uid('m'),cli:F.cli,neg:n.id,pts:-r.pts,motivo:'Canje: '+r.nombre,fecha:T});}
+  let msg='Cobrado '+L(m)+(tr?' por transferencia':m?' en efectivo':'');
+  if(tr&&F.via==='cliente'){v.pago.estado='por_comprobante';notify(F.cli,'Subí tu comprobante de pago',`${L(m)} en ${n.nombre}. Tocá para ver las cuentas.`);msg='Esperando el comprobante del cliente';}
+  else{if(tr)Object.assign(v.pago,{cuenta:F.cuenta,ref:F.ref,comp:F.comp,subido:'negocio'});applyPago(v);}
+  closeSheet();toast(msg);render();
+}
+/* ---- Confirmar transferencia ---- */
+function openConfirm(vid){F={vid,motivo:'',rech:false};openSheet(rConfTr);}
+function rConfTr(){
+  const v=D.visitas.find(x=>x.id===F.vid),n=neg(v.neg),cu=n.cuentas.find(c=>c.id===v.pago.cuenta),c=v.cli?cli(v.cli):null;
+  return`${head('Confirmar transferencia')}
+  <div class="panel" style="gap:8px"><div class="sec-h"><b>${esc(c?c.nombre:'Cliente')}</b><b class="num" style="font-size:22px">${L(v.monto)}</b></div><span class="sm muted">${esc(serv(v.serv).nombre)} con ${esc(first(pro(v.pro).nombre))}, ${fLbl(v.fecha).toLowerCase()}</span>${cu?`<div class="bank"><span class="ic" style="background:${BANK_COLOR[cu.banco]||'#444'}">${bankAbbr(cu.banco)}</span><div style="min-width:0"><div class="l1">${esc(cu.banco)}</div><div class="acct sm">${esc(cu.numero)}</div></div></div>`:''}${v.pago.ref?`<span class="sm">Referencia <b class="num">${esc(v.pago.ref)}</b></span>`:''}</div>
+  ${v.pago.comp?`<img class="proof" src="${v.pago.comp}" alt="Comprobante enviado por el cliente">`:'<div class="empty">Sin imagen del comprobante.</div>'}
+  ${F.rech?`<div class="f"><label for="rM">¿Por qué lo rechazás?</label><textarea id="rM" data-m="motivo" placeholder="Ej. El dinero no aparece en la cuenta">${esc(F.motivo)}</textarea></div><div class="row-btns"><button class="btn danger" ${act('rechazar')}>Rechazar y avisar al cliente</button><button class="btn quiet" ${act('setF','rech','')}>Volver</button></div>`:
+  `<p class="sm muted">Revisá en tu banco que el dinero entró. Al confirmar, se suma a la caja y el cliente gana sus puntos.</p><button class="btn good full" ${act('aprobar')}>Sí, el dinero entró</button><button class="btn full danger" ${act('setF','rech','1')}>No lo encuentro</button>`}`;
+}
+
+/* ---- Nueva cita (por teléfono) ---- */
+function nuevaCita(){const n=ON();F={cli:'',nombre:'',tel:'',serv:servsOf(n.id)[0].id,pro:prosOf(n.id)[0].id,fecha:T,t:null};openSheet(rNueva);}
+function rNueva(){
+  const n=ON(),cs=clientsOf(n.id),sl=slots(n.id,F.fecha,serv(F.serv).dur,F.pro),days=[...Array(7)].map((_,i)=>addDays(T,i));
+  return`${head('Nueva cita')}<p class="muted">Para alguien que llamó o escribió.</p>
+  <div class="f"><label for="ncC">Cliente</label><select id="ncC" data-m="cli" data-redraw="1"><option value="">Cliente nuevo</option>${cs.map(c=>`<option value="${c.id}" ${F.cli===c.id?'selected':''}>${esc(c.nombre)}</option>`).join('')}</select></div>
+  ${F.cli?'':`<div class="two"><div class="f"><label for="ncN">Nombre</label><input id="ncN" data-m="nombre" value="${esc(F.nombre)}"></div><div class="f"><label for="ncT">WhatsApp</label><input id="ncT" data-m="tel" inputmode="tel" value="${esc(F.tel)}"></div></div>`}
+  <div class="two"><div class="f"><label for="ncS">Servicio</label><select id="ncS" data-m="serv" data-redraw="1">${servsOf(n.id).map(s=>`<option value="${s.id}" ${s.id===F.serv?'selected':''}>${esc(s.nombre)}</option>`).join('')}</select></div><div class="f"><label for="ncP">Con</label><select id="ncP" data-m="pro" data-redraw="1">${prosOf(n.id).map(p=>`<option value="${p.id}" ${p.id===F.pro?'selected':''}>${esc(first(p.nombre))}</option>`).join('')}</select></div></div>
+  <div class="days">${days.map(f=>{const d=new Date(f+'T12:00:00');return`<button class="day" ${n.horario[d.getDay()]?'':'disabled'} aria-pressed="${F.fecha===f}" ${act('setF','fecha',f)}>${f===T?'Hoy':DIAS[d.getDay()]}<b class="num">${d.getDate()}</b></button>`;}).join('')}</div>
+  ${sl.length?`<div class="slots">${sl.map(x=>`<button class="slot" aria-pressed="${F.t===x.t}" ${act('setF','t',x.t)}>${h12(m2h(x.t))}</button>`).join('')}</div>`:'<div class="empty">Sin horas libres ese día.</div>'}
+  <button class="btn ink full" ${F.t!==null?'':'disabled'} ${act('saveNueva')}>Guardar cita</button>`;
+}
+
+function nAgenda(){
+  const n=ON(),days=[...Array(7)].map((_,i)=>addDays(T,i));
+  let cs=D.citas.filter(c=>c.neg===n.id&&c.fecha===UI.agDia&&c.estado!=='cancelada');if(UI.agPro!=='todos')cs=cs.filter(c=>c.pro===UI.agPro);cs.sort((a,b)=>a.hora.localeCompare(b.hora));
+  const ch=(k,l)=>`<button class="chip" aria-pressed="${UI.agPro===k}" ${act('agPro',k)}>${l}</button>`;
+  const h=n.horario[new Date(UI.agDia+'T12:00:00').getDay()];
+  return`<div class="sec-h"><h1 style="font-size:28px;font-weight:800">Agenda</h1><button class="btn s ink" ${act('nuevaCita')}>Nueva cita</button></div>
+  <div class="days">${days.map(f=>{const d=new Date(f+'T12:00:00'),k=D.citas.filter(c=>c.neg===n.id&&c.fecha===f&&['reservada','confirmada'].includes(c.estado)).length;return`<button class="day" aria-pressed="${UI.agDia===f}" ${act('agDia',f)}>${f===T?'Hoy':DIAS[d.getDay()]}<b class="num">${d.getDate()}</b><span class="xs num">${k} ${k===1?'cita':'citas'}</span></button>`;}).join('')}</div>
+  <div class="chips">${ch('todos','Todo el equipo')}${prosOf(n.id).map(p=>ch(p.id,esc(first(p.nombre)))).join('')}</div>
+  <p class="sm muted">${h?`Abierto de ${h12(m2h(h[0]*60))} a ${h12(m2h(h[1]*60))}.`:'Cerrado este día.'}</p>
+  <div class="list">${cs.map(c=>citaRow(c)).join('')||'<div class="empty">Sin citas este día.</div>'}</div>`;
+}
+function nClientes(){
+  const n=ON();
+  let cs=clientsOf(n.id).map(c=>{const vs=D.visitas.filter(v=>v.cli===c.id&&v.neg===n.id).sort((a,b)=>b.fecha.localeCompare(a.fecha));return{c,vs,lv:vs[0],pts:ptsOf(c.id,n.id)};});
+  if(UI.cliF==='extranar')cs=cs.filter(x=>x.lv&&dBetween(x.lv.fecha,T)>=30);
+  if(UI.cliF==='sincuenta')cs=cs.filter(x=>!x.c.cuenta);
+  if(UI.cliQ)cs=cs.filter(x=>x.c.nombre.toLowerCase().includes(UI.cliQ.toLowerCase()));
+  cs.sort((a,b)=>(b.lv?.fecha||'').localeCompare(a.lv?.fecha||''));
+  const ch=(k,l)=>`<button class="chip" aria-pressed="${UI.cliF===k}" ${act('cliF',k)}>${l}</button>`;
+  return`<div class="title"><h1>Clientes</h1><p class="num">${clientsOf(n.id).length} clientes</p></div>
+  <label class="search">${svg('search')}<input id="cq" data-i="cliSearch" placeholder="Buscar por nombre" value="${esc(UI.cliQ)}" autocomplete="off"></label>
+  <div class="chips">${ch('todos','Todos')}${ch('extranar','Sin venir hace 30 días')}${ch('sincuenta','Sin cuenta')}</div>
+  <div class="list">${cs.map(x=>`<button class="item" ${act('openCliente',x.c.id)}><div class="av">${ini(x.c.nombre)}</div><div class="body"><div class="l1">${esc(x.c.nombre)}${x.c.cuenta?'':' <span class="tag w">Sin cuenta</span>'}</div><div class="l2 num">${x.vs.length} ${x.vs.length===1?'visita':'visitas'}${x.lv?`, la última hace ${dBetween(x.lv.fecha,T)} días`:''}${x.c.cuenta?`, ${x.pts} puntos`:''}</div></div><span class="chev">›</span></button>`).join('')||'<div class="empty">Nadie con ese filtro.</div>'}</div>`;
+}
+function openCliente(id){
+  const n=ON();F={cid:id};
+  openSheet(()=>{const c=cli(id),vs=D.visitas.filter(v=>v.cli===id&&v.neg===n.id).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const msg=`Hola ${first(c.nombre)}, hace rato no te vemos por ${n.nombre}. Esta semana tenés L 20 de descuento. Reservá en turno.somarlabs.online/${n.slug}`;
+  return`${head(esc(c.nombre))}<div class="stats"><div class="stat"><b>${vs.length}</b><span>Visitas</span></div><div class="stat"><b>${L(vs.reduce((a,v)=>a+v.monto,0))}</b><span>Gastado</span></div><div class="stat"><b>${c.cuenta?ptsOf(id,n.id):'—'}</b><span>Puntos</span></div></div>
+  <div class="sm muted num">+504 ${esc(c.tel)}${c.cuenta?'':', no tiene cuenta en la app'}</div>
+  <div class="f"><label for="cn">Notas para el equipo</label><textarea id="cn" data-note="${id}" placeholder="Ej. fade bajo, tinte 6.1, uñas almendradas">${esc(c.notas[n.id]||'')}</textarea></div>
+  <div class="row-btns"><a class="btn wa" target="_blank" rel="noopener" href="${waLink(c.tel,msg)}">Invitar a volver</a></div><p class="xs faint">Se abre WhatsApp con el mensaje escrito. Vos lo enviás.</p>
+  <div class="list">${vs.map(v=>`<div class="item"><div class="body"><div class="l1">${esc(serv(v.serv).nombre)}</div><div class="l2">${fLbl(v.fecha)}, ${esc(first(pro(v.pro).nombre))}, ${v.pago.metodo}</div></div><b class="num">${L(v.monto)}</b></div>`).join('')||'<div class="empty">Sin visitas todavía.</div>'}</div>`;});
+}
+function nCaja(){
+  const n=ON(),all=D.visitas.filter(v=>v.neg===n.id&&v.fecha===T).sort((a,b)=>b.hora.localeCompare(a.hora)),vs=all.filter(v=>v.pago.estado==='pagado');
+  const tot=vs.reduce((a,v)=>a+v.monto,0),ef=vs.filter(v=>v.pago.metodo==='efectivo').reduce((a,v)=>a+v.monto,0);
+  const pend=all.filter(v=>v.pago.estado!=='pagado');const pendT=pend.reduce((a,v)=>a+v.monto,0);
+  const rows=prosOf(n.id).map(p=>{const m=vs.filter(v=>v.pro===p.id),s=m.reduce((a,v)=>a+v.monto,0);return{p,k:m.length,s,c:Math.round(s*p.com/100)};});
+  const com=rows.reduce((a,r)=>a+r.c,0);
+  const est=v=>({pagado:'',por_comprobante:' <span class="tag w">Falta comprobante</span>',por_confirmar:' <span class="tag a">Por confirmar</span>',rechazado:' <span class="tag r">Rechazado</span>'})[v.pago.estado];
+  return`<div class="title"><h1>Caja de hoy</h1><p class="num">${vs.length} cobros confirmados</p></div>
+  <div class="stats"><div class="stat"><b>${L(tot)}</b><span>Total</span></div><div class="stat"><b>${L(ef)}</b><span>Efectivo</span></div><div class="stat"><b>${L(tot-ef)}</b><span>Transferencias</span></div></div>
+  ${pend.length?`<div class="panel warn"><span class="sm"><b class="num">${L(pendT)}</b> en ${pend.length} ${pend.length===1?'transferencia pendiente':'transferencias pendientes'}. No se suman hasta que las confirmés.</span></div>`:''}
+  <div class="panel"><div class="sec-h"><h2>Por profesional</h2></div><div class="tbl"><table><thead><tr><th>Nombre</th><th class="r">Servicios</th><th class="r">Cobrado</th><th class="r">Comisión</th></tr></thead><tbody>
+  ${rows.map(r=>`<tr><td>${esc(first(r.p.nombre))} <span class="faint xs">${r.p.com}%</span></td><td class="r">${r.k}</td><td class="r">${L(r.s)}</td><td class="r">${L(r.c)}</td></tr>`).join('')}
+  <tr><td><b>Para el negocio</b></td><td></td><td></td><td class="r"><b>${L(tot-com)}</b></td></tr></tbody></table></div></div>
+  <div class="sec"><div class="sec-h"><h2>Movimientos</h2></div><div class="list">${all.map(v=>`<div class="item"><div class="body"><div class="l1">${esc(serv(v.serv).nombre)}, ${esc(v.cli?cli(v.cli).nombre:'Cliente en el local')}</div><div class="l2">${h12(v.hora)}, ${esc(first(pro(v.pro).nombre))}, ${v.pago.metodo}${v.canje?', canje':''}${est(v)}</div></div><b class="num">${L(v.monto)}</b></div>`).join('')||'<div class="empty">Todavía no hay cobros hoy.</div>'}</div></div>
+  ${n.cajaCerrada?'<div class="panel soft"><b>Caja cerrada</b><span class="sm">Los cobros nuevos de hoy se suman al cierre.</span></div>':`<button class="btn ink full" ${act('askCerrar')}>Cerrar caja de hoy</button>`}`;
+}
+function nMas(){
+  const n=ON(),r=negRt(n.id);
+  const it=(k,t,s)=>`<button class="item" ${act('openMas',k)}><div class="body"><div class="l1">${t}</div><div class="l2">${s}</div></div><span class="chev">›</span></button>`;
+  return`<div class="title"><h1>Más</h1></div>
+  <div class="list">${it('pagina','Mi página y código QR','turno.somarlabs.online/'+n.slug)}${it('cuentas','Cuentas para transferencias',n.cuentas.length?n.cuentas.map(c=>c.banco).join(', '):'Sin cuentas')}${it('fila','Fila',n.fila?'Activa'+(n.filaCasa?', también desde la casa':', solo en el local'):'Apagada')}${it('servicios','Servicios y precios',servsOf(n.id).length+' servicios')}${it('equipo','Equipo y comisiones',prosOf(n.id).length+' profesionales')}${it('puntos','Puntos y recompensas',`1 punto por cada ${L(n.lpp)}, ${n.ptsRef} por amigo`)}${it('resenas','Reseñas',`${r.v.toFixed(1)} estrellas, ${r.n} calificaciones`)}${it('plan','Mi plan','Plan '+n.plan)}</div>
+  <div class="list">${it('registro','Registrar otro negocio','Ver el alta de un negocio nuevo')}</div>`;
+}
+function masSub(k){
+  const n=ON(),back=`<button class="link" style="align-self:flex-start" ${act('closeMas')}>‹ Más</button>`;
+  if(k==='pagina')return`${back}<div class="title"><h1>Mi página y código QR</h1><p>Imprimí el código y pegalo en la puerta y en el espejo.</p></div>
+  <div class="panel" style="align-items:center;text-align:center"><div class="qr" id="qrBox" role="img" aria-label="Código QR de ${esc(n.nombre)}"></div><b>${esc(n.nombre)}</b><span class="sm muted">Escaneá para reservar${n.fila?' o tomar turno':''}</span><span class="sm acct">turno.somarlabs.online/${esc(n.slug)}</span><div class="row-btns"><button class="btn s" ${act('copy','https://turno.somarlabs.online/'+n.slug)}>Copiar enlace</button><button class="btn s" ${act('seeAsClient',n.id)}>Ver como cliente</button></div></div>
+  <div class="f"><label for="pDir">Dirección</label><input id="pDir" data-neg="direccion" value="${esc(n.direccion)}"></div>
+  <div class="f"><label for="pTel">WhatsApp del negocio</label><input id="pTel" data-neg="tel" value="${esc(n.tel)}"></div>
+  <div class="panel"><b>Horario</b>${[1,2,3,4,5,6,0].map(i=>`<div class="sw sm"><span>${DIAS_L[i]}</span><span class="num">${n.horario[i]?h12(m2h(n.horario[i][0]*60))+' a '+h12(m2h(n.horario[i][1]*60)):'Cerrado'}</span></div>`).join('')}</div>`;
+  if(k==='cuentas')return`${back}<div class="sec-h"><h1 style="font-size:28px;font-weight:800">Cuentas</h1><button class="btn s ink" ${act('editCuenta')}>Agregar</button></div><p class="muted">Tus clientes las ven al pagar por transferencia desde la app. Cada pago queda pendiente hasta que confirmés que el dinero entró.</p>
+  <div class="list">${n.cuentas.map(c=>`<button class="item" ${act('editCuenta',c.id)}><div class="bank" style="flex:1;min-width:0"><span class="ic" style="background:${BANK_COLOR[c.banco]||'#444'}">${bankAbbr(c.banco)}</span><div style="min-width:0"><div class="l1">${esc(c.banco)}, ${esc(c.tipo.toLowerCase())}</div><div class="acct sm">${esc(c.numero)}</div><div class="xs muted">${esc(c.titular)}</div></div></div><span class="chev">›</span></button>`).join('')||'<div class="empty">Agregá tu primera cuenta para recibir transferencias.</div>'}</div>`;
+  if(k==='fila')return`${back}<div class="title"><h1>Fila</h1><p>Turnos por orden de llegada. Útil en barberías; los salones suelen trabajar solo con cita.</p></div>
+  <div class="panel"><div class="sw"><div><b>Usar fila</b><div class="sm muted">Los clientes pueden tomar turno.</div></div><button class="switch" role="switch" aria-checked="${n.fila}" aria-label="Usar fila" ${act('toggleNeg','fila')}></button></div>
+  ${n.fila?`<div class="hr"></div><div class="sw"><div><b>Tomar turno desde la casa</b><div class="sm muted">Si está apagado, solo se puede escaneando el código en el local.</div></div><button class="switch" role="switch" aria-checked="${n.filaCasa}" aria-label="Turno desde la casa" ${act('toggleNeg','filaCasa')}></button></div>`:''}</div>
+  ${n.fila?`<button class="btn full" ${act('openTV')}>Abrir la pantalla para la tele del local</button>`:''}`;
+  if(k==='servicios')return`${back}<div class="sec-h"><h1 style="font-size:28px;font-weight:800">Servicios</h1><button class="btn s ink" ${act('editServ')}>Agregar</button></div><div class="list">${servsOf(n.id).map(s=>`<button class="item" ${act('editServ',s.id)}><div class="body"><div class="l1">${esc(s.nombre)}</div><div class="l2 num">${s.dur} min</div></div><b class="num">${L(s.precio)}</b><span class="chev">›</span></button>`).join('')}</div>`;
+  if(k==='equipo')return`${back}<div class="sec-h"><h1 style="font-size:28px;font-weight:800">Equipo</h1><button class="btn s ink" ${act('editPro')}>Agregar</button></div>
+  <div class="list">${prosOf(n.id).map(p=>`<button class="item" ${act('editPro',p.id)}><div class="av">${ini(p.nombre)}</div><div class="body"><div class="l1">${esc(p.nombre)}</div><div class="l2">${esc(p.rol)}, comisión ${p.com}%</div><div class="l2">${rtTxt(proRt(p.id),5)}</div></div><span class="chev">›</span></button>`).join('')}</div>
+  <div class="panel"><div class="sec-h"><h2>Mejor calificados del mes</h2></div>${prosOf(n.id).map(p=>({p,r:proRt(p.id),k:D.visitas.filter(v=>v.pro===p.id&&dBetween(v.fecha,T)<=30).length})).sort((a,b)=>b.r.v-a.r.v).map((x,i)=>`<div class="sw sm"><span><b class="num">${i+1}.</b> ${esc(x.p.nombre)}</span><span class="num">${x.r.v.toFixed(1)} ★, ${x.k} servicios</span></div>`).join('')}</div>`;
+  if(k==='puntos')return`${back}<div class="title"><h1>Puntos y recompensas</h1><p>Tus clientes con cuenta los ven en su app.</p></div>
+  <div class="panel"><div class="two"><div class="f"><label for="bL">1 punto por cada (L)</label><input id="bL" data-negnum="lpp" inputmode="numeric" class="num" value="${n.lpp}"></div><div class="f"><label for="bR">Puntos por amigo</label><input id="bR" data-negnum="ptsRef" inputmode="numeric" class="num" value="${n.ptsRef}"></div></div><p class="sm muted num">Así, ${esc(servsOf(n.id)[0].nombre.toLowerCase())} de ${L(servsOf(n.id)[0].precio)} da ${Math.floor(servsOf(n.id)[0].precio/n.lpp)} puntos.</p></div>
+  <div class="sec"><div class="sec-h"><h2>Recompensas</h2><button class="btn s ink" ${act('editRec')}>Agregar</button></div><div class="list">${n.recompensas.map(r=>`<div class="item"><div class="body"><div class="l1">${esc(r.nombre)}</div><div class="l2 num">${r.pts} puntos</div></div><button class="btn s quiet" ${act('delRec',r.id)}>Quitar</button></div>`).join('')||'<div class="empty">Sin recompensas.</div>'}</div></div>`;
+  if(k==='resenas'){const qs=D.cals.filter(q=>q.neg===n.id).sort((a,b)=>b.fecha.localeCompare(a.fecha)),r=negRt(n.id);
+  return`${back}<div class="title"><h1>Reseñas</h1><p class="num">${r.v.toFixed(1)} estrellas en promedio, ${r.n} calificaciones</p></div>
+  <div class="list">${qs.map(q=>`<div class="item top-al"><div class="av">${ini(cli(q.cli).nombre)}</div><div class="body" style="gap:6px"><div class="l1">${esc(cli(q.cli).nombre)} ${q.nueva?'<span class="tag r">Nueva</span>':''}</div><div class="l2">Negocio <span class="star">${stars(q.en)}</span>, ${esc(first(pro(q.pro).nombre))} <span class="star">${stars(q.ep)}</span>, ${fLbl(q.fecha).toLowerCase()}</div>${q.txt?`<div>${esc(q.txt)}</div>`:''}${q.resp?`<div class="reply"><b>Tu respuesta:</b> ${esc(q.resp)}</div>`:`<div class="row-btns"><button class="btn s" ${act('openResp',q.id)}>Responder</button>${q.reportada?'<span class="tag w">Reportada a Somar</span>':`<button class="btn s quiet" ${act('openReport',q.id)}>Reportar</button>`}</div>`}</div></div>`).join('')}</div>`;}
+  if(k==='plan')return`${back}<div class="title"><h1>Mi plan</h1><p>Estás en el plan ${n.plan}.</p></div>${planCards(n.plan)}`;
+  if(k==='registro'){F.rg=F.rg||{nombre:'',cat:'barberia',zona:'',tel:'',dueno:''};const r=F.rg;
+  return`${back}<div class="title"><h1>Registrar negocio</h1><p>Somar revisa los datos antes de publicarlo en la app.</p></div>
+  <div class="panel"><div class="f"><label for="rgN">Nombre del negocio</label><input id="rgN" data-rg="nombre" value="${esc(r.nombre)}" placeholder="Ej. Divas Salón"></div>
+  <div class="f"><label>Tipo de negocio</label><div class="opts">${Object.entries(CAT).map(([k2,l])=>`<button class="opt" aria-pressed="${r.cat===k2}" ${act('rgCat',k2)}><b>${l}</b></button>`).join('')}</div></div>
+  <div class="f"><label for="rgZ">Ciudad o colonia</label><input id="rgZ" data-rg="zona" value="${esc(r.zona)}" placeholder="Ej. La Lima"></div>
+  <div class="two"><div class="f"><label for="rgD">Dueño o dueña</label><input id="rgD" data-rg="dueno" value="${esc(r.dueno)}"></div><div class="f"><label for="rgT">WhatsApp</label><input id="rgT" data-rg="tel" inputmode="tel" value="${esc(r.tel)}"></div></div>
+  <button class="btn ink full" ${act('sendReg')}>Enviar solicitud</button></div>`;}
+}
+const PLANES=[{k:'Gratis',p:0,f:['1 profesional','Citas y fila','Perfil en la app y código QR']},{k:'Pro',p:399,f:['Hasta 5 profesionales','Puntos y referidos','Pagos por transferencia con comprobante','Caja y comisiones','Responder reseñas']},{k:'Plus',p:699,f:['Profesionales sin límite','Pantalla de fila para la tele','Clientes que no han vuelto','Reportes del mes']}];
+const planCards=cur=>PLANES.map(p=>`<div class="panel" style="${p.k===cur?'border:2px solid var(--accent)':''}"><div class="sec-h"><h2>${p.k}</h2><b class="num" style="font-size:20px">${L(p.p)}<span class="sm muted" style="font-weight:500"> al mes</span></b></div><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px" class="sm">${p.f.map(x=>`<li>${x}</li>`).join('')}</ul>${p.k===cur?'<span class="tag a" style="align-self:flex-start">Tu plan</span>':''}</div>`).join('');
+function drawQR(){const b=document.getElementById('qrBox');if(!b)return;b.innerHTML='';try{if(window.QRCode)new QRCode(b,{text:'https://turno.somarlabs.online/'+ON().slug,width:164,height:164,colorDark:'#16181D',colorLight:'#ffffff'});else b.innerHTML='<span class="sm" style="color:#16181D">Código no disponible</span>';}catch(e){}}
+function openTV(){
+  const n=ON(),c=called(n.id).sort((a,b)=>b.num-a.num)[0],w=waiting(n.id).slice(0,5);
+  document.getElementById('tvHost').innerHTML=`<div class="tv" role="dialog" aria-label="Pantalla de la fila"><div style="font-size:20px;opacity:.75">${esc(n.nombre)}</div><div style="font-size:18px;opacity:.6">${c?'Pasá, es tu turno':'Fila'}</div><div class="now num">${c?c.num:'—'}</div>${c?`<div style="font-size:22px">Con ${esc(first(pro(c.pro).nombre))}</div>`:''}<div style="opacity:.6;margin-top:10px">Siguientes</div><div class="nx num">${w.map(f=>`<span>${f.num}</span>`).join('')||'<span style="border:0">Nadie esperando</span>'}</div><div style="opacity:.55;font-size:15px;margin-top:12px">Tomá turno en turno.somarlabs.online/${esc(n.slug)}</div><button class="btn" style="margin-top:10px" ${act('closeTV')}>Cerrar pantalla</button></div>`;
+}
+
+/* =====================================================================
+   PROFESIONAL
+   ===================================================================== */
+function rPro(){
+  const p=pro(D.pro),n=neg(p.neg);
+  const opts=D.negocios.filter(x=>x.estado==='activo').map(x=>`<optgroup label="${esc(x.nombre)}">${prosOf(x.id).map(y=>`<option value="${y.id}" ${y.id===D.pro?'selected':''}>${esc(y.nombre)}</option>`).join('')}</optgroup>`).join('');
+  return`<div class="f"><label for="pp" class="sm muted">Ver como</label><select id="pp" data-pick="pro">${opts}</select></div>`+({dia:pDia,ganancias:pGan,resenas:pRes})[V.pro](p,n);
+}
+function pDia(p,n){
+  const vs=D.visitas.filter(v=>v.pro===p.id&&v.fecha===T&&v.pago.estado==='pagado'),s=vs.reduce((a,v)=>a+v.monto,0);
+  const cs=D.citas.filter(c=>c.pro===p.id&&c.fecha===T&&c.estado!=='cancelada').sort((a,b)=>a.hora.localeCompare(b.hora));
+  const cur=called(n.id).filter(f=>f.pro===p.id),w=waiting(n.id).filter(f=>!f.pro||f.pro===p.id),nx=w[0],r=proRt(p.id);
+  return`<div class="title"><h1>Hola, ${esc(first(p.nombre))}</h1><p>${esc(p.rol)} en ${esc(n.nombre)}${p.com?`, comisión ${p.com}%`:''}</p></div>
+  <div class="stats"><div class="stat"><b>${vs.length}</b><span>Atendidos hoy</span></div><div class="stat"><b>${L(p.com?Math.round(s*p.com/100):s)}</b><span>${p.com?'Tu comisión':'Cobrado'}</span></div><div class="stat"><b>${r.n?r.v.toFixed(1):'—'}</b><span>Tu calificación</span></div></div>
+  ${n.fila?`${cur.length?`<div class="sec"><div class="sec-h"><h2>Atendiendo ahora</h2></div><div class="list">${cur.map(f=>filaRow(f,p.id)).join('')}</div></div>`:''}
+  <div class="sec"><div class="sec-h"><h2>Fila para vos</h2><span class="sm muted num">${w.length} esperando</span></div>
+  ${nx&&!cur.length?`<button class="btn ink full" ${act('llamar',nx.id,p.id)}>Llamar al siguiente: ${nx.num}, ${esc(fName(nx))}</button>`:''}
+  <div class="list">${w.map(f=>filaRow(f,p.id)).join('')||'<div class="empty">Nadie esperando por vos.</div>'}</div><p class="xs faint">Ves a quienes te eligieron y a quienes aceptan al primero libre.</p></div>`:''}
+  <div class="sec"><div class="sec-h"><h2>Mis citas de hoy</h2></div><div class="list">${cs.map(c=>citaRow(c,p.id)).join('')||'<div class="empty">No tenés citas hoy.</div>'}</div></div>`;
+}
+function pGan(p){
+  const days=[...Array(7)].map((_,i)=>addDays(T,-i)),pc=p.com||100;
+  const rows=days.map(f=>{const vs=D.visitas.filter(v=>v.pro===p.id&&v.fecha===f&&v.pago.estado==='pagado'),s=vs.reduce((a,v)=>a+v.monto,0);return{f,k:vs.length,c:Math.round(s*pc/100)};});
+  const tot=rows.reduce((a,r)=>a+r.c,0),mx=Math.max(1,...rows.map(r=>r.c));
+  return`<div class="title"><h1>Ganancias</h1><p>${p.com?`Tu comisión es el ${p.com}% de lo cobrado`:'Todo lo cobrado por tus servicios'}</p></div>
+  <div class="stats" style="grid-template-columns:1fr 1fr"><div class="stat"><b>${L(rows[0].c)}</b><span>Hoy</span></div><div class="stat"><b>${L(tot)}</b><span>Últimos 7 días</span></div></div>
+  <div class="panel"><div class="sec-h"><h2>Por día</h2></div>${rows.map(r=>`<div style="display:grid;grid-template-columns:74px 1fr 76px;gap:10px;align-items:center" class="sm"><span>${fLbl(r.f)}</span><div class="bar" style="height:10px"><i style="width:${r.c/mx*100}%"></i></div><span class="num r">${L(r.c)}</span></div>`).join('')}</div>
+  <div class="sec"><div class="sec-h"><h2>Servicios de hoy</h2></div><div class="list">${D.visitas.filter(v=>v.pro===p.id&&v.fecha===T).map(v=>`<div class="item"><div class="body"><div class="l1">${esc(serv(v.serv).nombre)}</div><div class="l2">${esc(v.cli?cli(v.cli).nombre:'Cliente en el local')}, ${h12(v.hora)}${v.pago.estado!=='pagado'?', pago pendiente':''}</div></div><b class="num">${L(Math.round(v.monto*pc/100))}</b></div>`).join('')||'<div class="empty">Sin servicios hoy.</div>'}</div></div>`;
+}
+function pRes(p){
+  const qs=D.cals.filter(q=>q.pro===p.id).sort((a,b)=>b.fecha.localeCompare(a.fecha)),r=proRt(p.id),dist=[5,4,3,2,1].map(s=>({s,k:qs.filter(q=>q.ep===s).length}));
+  return`<div class="title"><h1>Mis reseñas</h1></div>
+  <div class="panel"><div style="display:flex;gap:18px;align-items:center"><div style="text-align:center;min-width:86px"><b class="num" style="font-size:40px;line-height:1;letter-spacing:-.03em">${r.n?r.v.toFixed(1):'—'}</b><div class="star">${stars(r.v)}</div><div class="xs muted num">${r.n} calificaciones</div></div>
+  <div style="flex:1;display:flex;flex-direction:column;gap:5px">${dist.map(d=>`<div style="display:grid;grid-template-columns:12px 1fr 20px;gap:8px;align-items:center" class="xs num"><span>${d.s}</span><div class="bar" style="height:7px"><i style="width:${r.n?d.k/r.n*100:0}%;background:#E0A100"></i></div><span class="r">${d.k}</span></div>`).join('')}</div></div>
+  ${r.n<5?'<p class="sm muted">Tu promedio se muestra a los clientes desde 5 calificaciones.</p>':''}</div>
+  <div class="list">${qs.map(q=>`<div class="item top-al"><div class="body"><div class="l1"><span class="star">${stars(q.ep)}</span> ${esc(first(cli(q.cli).nombre))}</div><div class="l2">${fLbl(q.fecha)}</div>${q.txt?`<div class="sm">${esc(q.txt)}</div>`:''}</div></div>`).join('')||'<div class="empty">Todavía no tenés calificaciones.</div>'}</div>`;
+}
+
+/* =====================================================================
+   SOMAR
+   ===================================================================== */
+function rSomar(){return({resumen:sRes,negocios:sNeg,reportes:sRep,planes:sPlan})[V.somar]();}
+function sRes(){
+  const a=D.negocios.filter(n=>n.estado==='activo'),pe=D.negocios.filter(n=>n.estado==='pendiente'),mrr=a.reduce((s,n)=>s+(PLANES.find(p=>p.k===n.plan)?.p||0),0),v30=D.visitas.filter(v=>dBetween(v.fecha,T)<=30);
+  return`<div class="title"><h1>Somar Labs</h1><p>Panel interno de Somar Turno</p></div>
+  <div class="stats"><div class="stat"><b>${a.length}</b><span>Negocios activos</span></div><div class="stat"><b>${D.clientes.filter(c=>c.cuenta).length}</b><span>Clientes con cuenta</span></div><div class="stat"><b>${L(mrr)}</b><span>Ingreso al mes</span></div></div>
+  <div class="stats"><div class="stat"><b>${v30.length}</b><span>Visitas en 30 días</span></div><div class="stat"><b>${D.citas.filter(c=>c.fecha===T&&c.estado!=='cancelada').length}</b><span>Citas hoy</span></div><div class="stat"><b>${L(v30.filter(v=>v.pago.metodo==='transferencia').reduce((s,v)=>s+v.monto,0))}</b><span>En transferencias</span></div></div>
+  ${pe.length?`<div class="panel warn"><b>${pe.length} ${pe.length===1?'negocio espera':'negocios esperan'} aprobación</b><div><button class="btn s" ${act('go','negocios')}>Revisar</button></div></div>`:''}
+  ${D.cals.some(q=>q.reportada)?`<div class="panel bad"><b>Hay reseñas reportadas</b><div><button class="btn s" ${act('go','reportes')}>Revisar</button></div></div>`:''}
+  <div class="panel"><div class="sec-h"><h2>Actividad por negocio</h2></div><div class="tbl"><table><thead><tr><th>Negocio</th><th>Tipo</th><th class="r">Visitas</th><th class="r">★</th></tr></thead><tbody>${a.map(n=>({n,k:v30.filter(v=>v.neg===n.id).length,r:negRt(n.id)})).sort((x,y)=>y.k-x.k).map(x=>`<tr><td>${esc(x.n.nombre)}</td><td>${CAT[x.n.cat]}</td><td class="r">${x.k}</td><td class="r">${x.r.v.toFixed(1)}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+function sNeg(){
+  const st={activo:['g','Activo'],pendiente:['w','Pendiente'],rechazado:['','Rechazado']};
+  return`<div class="title"><h1>Negocios</h1><p class="num">${D.negocios.length} registrados</p></div>
+  <div class="list">${[...D.negocios].sort((a,b)=>(b.estado==='pendiente')-(a.estado==='pendiente')).map(n=>`<div class="item top-al"><div class="mono s" style="background:${n.color}">${ini(n.nombre)}</div><div class="body" style="gap:8px"><div><div class="l1">${esc(n.nombre)} <span class="tag ${st[n.estado][0]}">${st[n.estado][1]}</span></div><div class="l2">${CAT[n.cat]}, ${esc(n.zona)}, ${prosOf(n.id).length} ${prosOf(n.id).length===1?'profesional':'profesionales'}</div><div class="l2 num">+504 ${esc(n.tel)}</div></div>
+  ${n.estado==='pendiente'?`<div class="row-btns"><button class="btn s good" ${act('aprobarNeg',n.id)}>Aprobar</button><button class="btn s quiet" ${act('rechazarNeg',n.id)}>Rechazar</button></div>`:n.estado==='activo'?`<div class="f" style="max-width:190px"><label for="pl${n.id}" class="xs faint">Plan</label><select id="pl${n.id}" data-plan="${n.id}">${PLANES.map(p=>`<option ${p.k===n.plan?'selected':''}>${p.k}</option>`).join('')}</select></div>`:''}</div></div>`).join('')}</div>`;
+}
+function sRep(){
+  const qs=D.cals.filter(q=>q.reportada);
+  return`<div class="title"><h1>Reseñas reportadas</h1><p>Se quitan solo si son ofensivas o falsas.</p></div>
+  ${qs.map(q=>`<div class="panel"><b>${esc(neg(q.neg).nombre)}</b><span class="sm muted">${esc(cli(q.cli).nombre)}, <span class="star">${stars(q.en)}</span>, ${fLbl(q.fecha).toLowerCase()}, visita registrada</span><div>“${esc(q.txt||'Sin comentario')}”</div><div class="reply"><b>Motivo del negocio:</b> ${esc(q.motivo)}</div><div class="row-btns"><button class="btn s" ${act('keepRev',q.id)}>Mantener</button><button class="btn s danger" ${act('delRev',q.id)}>Eliminar</button></div></div>`).join('')||'<div class="panel"><p class="muted">No hay reseñas reportadas.</p></div>'}`;
+}
+function sPlan(){
+  const c=k=>D.negocios.filter(n=>n.estado==='activo'&&n.plan===k).length;
+  return`<div class="title"><h1>Planes</h1><p>Precios por validar con negocios reales.</p></div><div class="panel"><div class="tbl"><table><thead><tr><th>Plan</th><th class="r">Precio</th><th class="r">Negocios</th><th class="r">Al mes</th></tr></thead><tbody>${PLANES.map(p=>`<tr><td>${p.k}</td><td class="r">${L(p.p)}</td><td class="r">${c(p.k)}</td><td class="r">${L(p.p*c(p.k))}</td></tr>`).join('')}</tbody></table></div></div>${planCards(null)}`;
+}
+
+/* =================== Acciones =================== */
+const A={
+  setRole(r){D.role=r;MAS=null;try{localStorage.setItem('st-role',r);}catch(e){}render();scrollTo(0,0);},
+  go(v){V[D.role]=v;if(D.role==='cliente')UI.negView=null;if(D.role==='negocio')MAS=null;render();scrollTo(0,0);},
+  pushTap(){document.getElementById('push').classList.remove('show');if(D.role!=='cliente')D.role='cliente';UI.negView=null;V.cliente=myPending().length?'inicio':'turnos';render();},
+  scrim(e,el,ev){if(ev.target===el)closeSheet();},
+  closeSheet(){closeSheet();},
+  confirmYes(){const f=CONF;CONF=null;closeSheet();f&&f();},
+  askReset(){ask('Reiniciar la demo','Se borran los cambios y vuelven los datos de prueba del inicio.','Reiniciar',()=>{const r=D.role;seed();D.role=r;Object.assign(V,{cliente:'inicio',negocio:'hoy',pro:'dia',somar:'resumen'});UI.negView=null;MAS=null;render();toast('Demo reiniciada');});},
+  setCat(k){UI.cat=k;render();},
+  openNeg(id){UI.negView=id;UI.negTab='servicios';render();scrollTo(0,0);},
+  closeNeg(){UI.negView=null;render();},
+  negTab(k){UI.negTab=k;render();},
+  toggleFav(id){const f=me().favs,i=f.indexOf(id);i>=0?f.splice(i,1):f.push(id);toast(i>=0?'Quitado de favoritos':'Guardado en favoritos');render();},
+  reservar(n,s,p,rep){reservar(n,s||null,p===undefined?undefined:p,rep);},
+  rBack(){R.step--;drawSheet();},
+  rServ(s){R.serv=s;if(R.pro!==undefined){R.step=3;R.fecha=firstDay();}else R.step=2;drawSheet();},
+  rPro(p){R.pro=p||null;R.step=3;R.fecha=firstDay();drawSheet();},
+  rDia(f){R.fecha=f;drawSheet();},
+  rSlot(t,p){R.slot={t:+t,pro:p};R.step=4;drawSheet();},
+  rConfirm(){rConfirm();},
+  tomarTurno(n,m){tomarTurno(n,m);},
+  confirmTurno(){confirmTurno();},
+  askSalir(id){ask('Salir de la fila','Perdés tu número. Si volvés, tomás uno nuevo.','Salir de la fila',()=>{const f=D.fila.find(x=>x.id===id);f.estado='salio';checkFila(f.neg);toast('Saliste de la fila');render();},'ink');},
+  askCancel(id){ask('Cancelar cita','Tu espacio queda libre para otra persona.','Cancelar cita',()=>{D.citas.find(x=>x.id===id).estado='cancelada';toast('Cita cancelada');render();},'ink');},
+  openUpload(id){openUpload(id);},
+  pickCuenta(id){F.cuenta=id;drawSheet();},
+  copy(t){try{navigator.clipboard.writeText(t).then(()=>toast('Copiado: '+t),()=>toast(t));}catch(e){toast(t);}},
+  demoProof(){const v=D.visitas.find(x=>x.id===F.vid),n=neg(v.neg),cu=n.cuentas.find(c=>c.id===F.cuenta);F.comp=fakeProof(cu.banco,v.monto,cu.numero,me().nombre,String(100000+Math.floor(Math.random()*899999)));drawSheet();},
+  sendProof(){sendProof();},
+  openRate(id){openRate(id);},
+  setStar(k,i){F[k]=+i;drawSheet();},
+  sendRate(){sendRate();},
+  signup(){signup(false);},
+  signupNew(){signup(true);},
+  useGuest(){D.me=null;V.cliente='inicio';render();toast('Ahora usás la app sin cuenta');},
+  backToCarlos(){D.me='c1';V.cliente='inicio';render();toast('Volviste a Carlos');},
+  suStep2(){if(String(F.tel).replace(/\D/g,'').length<8){toast('Escribí un número de 8 dígitos');return;}F.step=2;drawSheet();},
+  suStep3(){if(String(F.codeIn).trim()!==F.code){toast('El código no coincide. Revisalo en WhatsApp.');return;}F.step=3;drawSheet();},
+  suFinish(){suFinish();},
+  pickNeg(id){D.ownerNeg=id;MAS=null;render();},
+  openLlamar(id){openLlamar(id);},
+  llamar(f,p){llamar(f,p);},
+  noVinoFila(id){const f=D.fila.find(x=>x.id===id);f.estado='novino';checkFila(f.neg);toast(`Turno ${f.num} marcado como no vino`);render();},
+  noVinoCita(id){D.citas.find(x=>x.id===id).estado='novino';toast('Cita marcada como no vino');render();},
+  openAddFila(){openAddFila();},
+  addFila(){const n=ON();D.fila.push({id:uid('f'),neg:n.id,num:n.contador++,cli:null,nombre:F.nombre.trim()||'Cliente en el local',pro:null,serv:F.serv,estado:'esperando',hora:m2h(nowMin()),casa:false,av:true});closeSheet();toast('Turno agregado');render();},
+  cobrar(k,id,p){cobrar(k,id,p||'');},
+  setF(k,v){F[k]=k==='t'?+v:k==='rech'?!!v:v;drawSheet();},
+  doCobro(){doCobro();},
+  openConfirm(id){openConfirm(id);},
+  aprobar(){const v=D.visitas.find(x=>x.id===F.vid);applyPago(v);closeSheet();toast('Transferencia confirmada');render();},
+  rechazar(){const v=D.visitas.find(x=>x.id===F.vid);v.pago.estado='rechazado';v.pago.motivo=(F.motivo||'').trim()||'El dinero no aparece en la cuenta.';notify(v.cli,'Revisá tu comprobante',`${neg(v.neg).nombre} no encontró tu transferencia de ${L(v.monto)}. Subila otra vez.`);closeSheet();toast('Comprobante rechazado. Le avisamos al cliente.');render();},
+  nuevaCita(){nuevaCita();},
+  saveNueva(){let id=F.cli;if(!id){if(F.nombre.trim().length<3){toast('Escribí el nombre del cliente');return;}const c={id:uid('c'),nombre:F.nombre.trim(),tel:F.tel,ref:'',cuenta:false,notas:{},favs:[]};D.clientes.push(c);id=c.id;}D.citas.push({id:uid('ci'),neg:ON().id,cli:id,pro:F.pro,serv:F.serv,fecha:F.fecha,hora:m2h(F.t),estado:'reservada'});notify(id,'Cita agendada',`${serv(F.serv).nombre} ${fLbl(F.fecha).toLowerCase()} a las ${h12(m2h(F.t))}.`);closeSheet();toast('Cita guardada');render();},
+  agDia(f){UI.agDia=f;render();},agPro(p){UI.agPro=p;render();},cliF(k){UI.cliF=k;render();},
+  openCliente(id){openCliente(id);},
+  askCerrar(){const n=ON(),vs=D.visitas.filter(v=>v.neg===n.id&&v.fecha===T&&v.pago.estado==='pagado'),t=vs.reduce((a,v)=>a+v.monto,0);ask('Cerrar caja de hoy',`Total confirmado ${L(t)}. Las transferencias pendientes se suman cuando las confirmés.`,'Cerrar caja',()=>{n.cajaCerrada=true;toast('Caja cerrada');render();});},
+  openMas(k){V.negocio='mas';MAS=k;render();scrollTo(0,0);},
+  openMasFromSheet(k){closeSheet();V.negocio='mas';MAS=k;render();scrollTo(0,0);},
+  closeMas(){MAS=null;render();},
+  seeAsClient(id){D.role='cliente';UI.negView=id;UI.negTab='servicios';render();scrollTo(0,0);},
+  toggleNeg(k){ON()[k]=!ON()[k];render();},
+  editServ(id){const s=id?serv(id):null;F={id:id||'',nombre:s?s.nombre:'',precio:s?s.precio:150,dur:s?s.dur:30};openSheet(()=>`${head(id?'Editar servicio':'Nuevo servicio')}<div class="f"><label for="esN">Nombre</label><input id="esN" data-m="nombre" value="${esc(F.nombre)}"></div><div class="two"><div class="f"><label for="esP">Precio (L)</label><input id="esP" data-m="precio" data-num="1" inputmode="numeric" class="num" value="${F.precio}"></div><div class="f"><label for="esD">Duración</label><select id="esD" data-m="dur" data-num="1">${[15,20,30,40,45,60,90,120,150].map(m=>`<option value="${m}" ${m===F.dur?'selected':''}>${m} min</option>`).join('')}</select></div></div><div class="row-btns"><button class="btn ink" ${act('saveServ')}>Guardar</button>${id?`<button class="btn danger" ${act('delServ')}>Quitar servicio</button>`:''}</div>`);},
+  saveServ(){if(F.nombre.trim().length<2){toast('Escribí el nombre del servicio');return;}if(F.id)Object.assign(serv(F.id),{nombre:F.nombre.trim(),precio:F.precio,dur:F.dur});else D.servs.push({id:uid('s'),neg:ON().id,nombre:F.nombre.trim(),precio:F.precio,dur:F.dur});closeSheet();toast('Servicio guardado');render();},
+  delServ(){D.servs=D.servs.filter(x=>x.id!==F.id);closeSheet();toast('Servicio quitado');render();},
+  editPro(id){const p=id?pro(id):null;F={id:id||'',nombre:p?p.nombre:'',rol:p?p.rol:({barberia:'Barbero',salon:'Estilista',estilista:'Estilista',unas:'Manicurista'})[ON().cat],com:p?p.com:40};openSheet(()=>`${head(id?'Editar profesional':'Nuevo profesional')}<div class="f"><label for="epN">Nombre</label><input id="epN" data-m="nombre" value="${esc(F.nombre)}"></div><div class="two"><div class="f"><label for="epR">Puesto</label><select id="epR" data-m="rol">${['Barbero','Barbera','Estilista','Colorista','Manicurista','Maquillista'].map(r=>`<option ${r===F.rol?'selected':''}>${r}</option>`).join('')}</select></div><div class="f"><label for="epC">Comisión (%)</label><input id="epC" data-m="com" data-num="1" inputmode="numeric" class="num" value="${F.com}"></div></div>${id?'':'<p class="sm muted">Le llega un enlace por WhatsApp para entrar a su panel.</p>'}<button class="btn ink" ${act('savePro')}>Guardar</button>`);},
+  savePro(){if(F.nombre.trim().length<3){toast('Escribí el nombre');return;}if(F.id)Object.assign(pro(F.id),{nombre:F.nombre.trim(),rol:F.rol,com:Math.min(100,F.com)});else D.pros.push({id:uid('p'),neg:ON().id,nombre:F.nombre.trim(),rol:F.rol,com:Math.min(100,F.com)});closeSheet();toast('Guardado');render();},
+  editCuenta(id){const n=ON(),c=id?n.cuentas.find(x=>x.id===id):null;F={id:id||'',banco:c?c.banco:'BAC Credomatic',tipo:c?c.tipo:'Ahorro',numero:c?c.numero:'',titular:c?c.titular:''};openSheet(()=>`${head(id?'Editar cuenta':'Nueva cuenta')}<div class="f"><label for="ecB">Banco o billetera</label><select id="ecB" data-m="banco">${Object.keys(BANK_COLOR).map(b=>`<option ${b===F.banco?'selected':''}>${b}</option>`).join('')}</select></div><div class="two"><div class="f"><label for="ecT">Tipo</label><select id="ecT" data-m="tipo">${['Ahorro','Cheques','Billetera'].map(t=>`<option ${t===F.tipo?'selected':''}>${t}</option>`).join('')}</select></div><div class="f"><label for="ecN">Número</label><input id="ecN" data-m="numero" inputmode="numeric" class="num" value="${esc(F.numero)}"></div></div><div class="f"><label for="ecH">A nombre de</label><input id="ecH" data-m="titular" value="${esc(F.titular)}"></div><div class="row-btns"><button class="btn ink" ${act('saveCuenta')}>Guardar</button>${id?`<button class="btn danger" ${act('delCuenta')}>Quitar cuenta</button>`:''}</div>`);},
+  saveCuenta(){if(String(F.numero).replace(/\D/g,'').length<6||F.titular.trim().length<3){toast('Completá el número y a nombre de quién está');return;}const n=ON();if(F.id)Object.assign(n.cuentas.find(x=>x.id===F.id),{banco:F.banco,tipo:F.tipo,numero:F.numero,titular:F.titular.trim()});else n.cuentas.push({id:uid('b'),banco:F.banco,tipo:F.tipo,numero:F.numero,titular:F.titular.trim()});closeSheet();toast('Cuenta guardada');render();},
+  delCuenta(){const n=ON();n.cuentas=n.cuentas.filter(x=>x.id!==F.id);closeSheet();toast('Cuenta quitada');render();},
+  editRec(){F={nombre:'',pts:100};openSheet(()=>`${head('Nueva recompensa')}<div class="f"><label for="erN">Qué se lleva el cliente</label><input id="erN" data-m="nombre" placeholder="Ej. Diseño gratis"></div><div class="f"><label for="erP">Puntos necesarios</label><input id="erP" data-m="pts" data-num="1" inputmode="numeric" class="num" value="100"></div><button class="btn ink" ${act('saveRec')}>Agregar</button>`);},
+  saveRec(){if(!F.nombre.trim()){toast('Escribí la recompensa');return;}ON().recompensas.push({id:uid('r'),nombre:F.nombre.trim(),pts:F.pts||100});ON().recompensas.sort((a,b)=>a.pts-b.pts);closeSheet();toast('Recompensa agregada');render();},
+  delRec(id){ON().recompensas=ON().recompensas.filter(x=>x.id!==id);render();},
+  openResp(id){F={qid:id,txt:''};openSheet(()=>{const q=D.cals.find(x=>x.id===id);return`${head('Responder')}<p class="muted">“${esc(q.txt||'Sin comentario')}”</p><div class="f"><label for="rpT">Tu respuesta pública</label><textarea id="rpT" data-m="txt" placeholder="Gracias por venir..."></textarea></div><p class="xs faint">Todos la van a ver. Las reseñas no se pueden borrar.</p><button class="btn ink" ${act('saveResp')}>Publicar respuesta</button>`;});},
+  saveResp(){if(!F.txt.trim()){toast('Escribí tu respuesta');return;}const q=D.cals.find(x=>x.id===F.qid);q.resp=F.txt.trim();q.nueva=false;closeSheet();toast('Respuesta publicada');render();},
+  openReport(id){F={qid:id,txt:''};openSheet(()=>`${head('Reportar reseña')}<p class="muted">Somar la revisa. Solo se quita si es ofensiva o falsa.</p><div class="f"><label for="rrT">¿Por qué la reportás?</label><textarea id="rrT" data-m="txt"></textarea></div><button class="btn danger" ${act('sendReport')}>Enviar reporte</button>`);},
+  sendReport(){const q=D.cals.find(x=>x.id===F.qid);q.reportada=true;q.motivo=F.txt.trim()||'Sin motivo';closeSheet();toast('Reporte enviado a Somar');render();},
+  rgCat(k){F.rg.cat=k;render();},
+  sendReg(){const r=F.rg;if(r.nombre.trim().length<3||r.zona.trim().length<2){toast('Completá el nombre y la ciudad');return;}const id=uid('n'),slug=r.nombre.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    D.negocios.push({id,slug,nombre:r.nombre.trim(),cat:r.cat,zona:r.zona.trim(),direccion:'Por completar',tel:r.tel,color:'#5A5F6B',horario:H(9,18),fila:r.cat==='barberia',filaCasa:false,plan:'Gratis',estado:'pendiente',lpp:10,ptsRef:50,recompensas:[],contador:1,cajaCerrada:false,cuentas:[]});
+    D.servs.push({id:uid('s'),neg:id,nombre:({barberia:'Corte',salon:'Corte de dama',estilista:'Corte y secado',unas:'Manicure'})[r.cat],precio:150,dur:30});
+    D.pros.push({id:uid('p'),neg:id,nombre:r.dueno.trim()||'Dueño',rol:({barberia:'Barbero',salon:'Estilista',estilista:'Estilista',unas:'Manicurista'})[r.cat],com:0});
+    F.rg=null;MAS=null;render();CONF=()=>{D.role='somar';V.somar='negocios';render();scrollTo(0,0);};
+    openSheet(()=>`${head('Solicitud enviada')}<p class="muted">Somar revisa los datos y aprueba el negocio. Mientras tanto no aparece en la app.</p><div class="row-btns"><button class="btn ink" ${act('confirmYes')}>Verla como Somar</button><button class="btn" ${act('closeSheet')}>Listo</button></div>`);},
+  openTV(){openTV();},closeTV(){document.getElementById('tvHost').innerHTML='';},
+  aprobarNeg(id){neg(id).estado='activo';toast('Negocio aprobado. Ya aparece en la app.');render();},
+  rechazarNeg(id){neg(id).estado='rechazado';toast('Solicitud rechazada');render();},
+  keepRev(id){D.cals.find(x=>x.id===id).reportada=false;toast('Reseña mantenida');render();},
+  delRev(id){D.cals=D.cals.filter(x=>x.id!==id);toast('Reseña eliminada');render();},
+};
+
+/* =================== Eventos (sin código en línea) =================== */
+document.addEventListener('click',ev=>{
+  const el=ev.target.closest('[data-a]');if(!el)return;
+  const fn=A[el.dataset.a];if(!fn)return;
+  if(el.dataset.a==='scrim'){if(ev.target===el)closeSheet();return;}
+  if(el.tagName==='A')return;
+  ev.preventDefault();
+  const p=el.dataset.p!==undefined?el.dataset.p.split('|'):[];
+  fn(...p);
+});
+document.addEventListener('keydown',ev=>{if((ev.key==='Enter'||ev.key===' ')&&ev.target.matches('[role="button"][data-a]')){ev.preventDefault();ev.target.click();}});
+document.addEventListener('input',ev=>{
+  const el=ev.target,d=el.dataset;
+  if(d.m!==undefined&&el.tagName!=='SELECT'){F[d.m]=d.num?(parseInt(el.value)||0):el.value;}
+  if(d.i==='search'){UI.q=el.value;const pos=el.selectionStart;render();const q=document.getElementById('q');q.focus();try{q.setSelectionRange(pos,pos);}catch(e){}}
+  if(d.i==='cliSearch'){UI.cliQ=el.value;const pos=el.selectionStart;render();const q=document.getElementById('cq');q.focus();try{q.setSelectionRange(pos,pos);}catch(e){}}
+  if(d.note){cli(d.note).notas[ON().id]=el.value;}
+  if(d.neg){ON()[d.neg]=el.value;}
+  if(d.rg){F.rg[d.rg]=el.value;}
+});
+document.addEventListener('change',ev=>{
+  const el=ev.target,d=el.dataset;
+  if(d.m!==undefined&&el.tagName==='SELECT'){F[d.m]=d.num?(parseInt(el.value)||0):el.value;if(d.m==='serv'&&F.monto!==undefined)F.monto=null;if(d.m==='cli'||d.m==='serv'||d.m==='pro')F.t=F.t===undefined?undefined:null;if(d.redraw)drawSheet();}
+  if(d.m!==undefined&&el.tagName!=='SELECT'&&d.redraw)drawSheet();
+  if(d.negnum){ON()[d.negnum]=Math.max(d.negnum==='lpp'?1:0,parseInt(el.value)||0);render();}
+  if(d.pick==='pro'){D.pro=el.value;render();}
+  if(d.plan){neg(d.plan).plan=el.value;toast('Plan cambiado');render();}
+  if(d.file&&el.files&&el.files[0]){const r=new FileReader();r.onload=()=>{F[d.file]=r.result;drawSheet();};r.readAsDataURL(el.files[0]);}
+});
+
+/* =================== Inicio =================== */
+seed();
+try{const r=localStorage.getItem('st-role');if(r&&TABS[r])D.role=r;}catch(e){}
+render();
+/* Bienvenida para quien ve la demo por primera vez */
+A.introRol=r=>{closeSheet();A.setRole(r);};
+A.registrarme=()=>{location.href='/panel';};
+(function(){let visto=false;try{visto=localStorage.getItem('st-intro')==='1';localStorage.setItem('st-intro','1');}catch(e){}
+if(visto)return;openSheet(()=>`${head('Probá Somar Turno')}<p class="muted">Es una demo con datos de prueba. Arriba cambiás entre las cuatro vistas de la app; lo que hacés en una se ve en las otras.</p>
+<div class="list">
+<button class="item" ${act('introRol','cliente')}><div class="body"><div class="l1">Cliente</div><div class="l2">Reservar, tomar turno, pagar por transferencia y ganar puntos</div></div><span class="chev">›</span></button>
+<button class="item" ${act('introRol','negocio')}><div class="body"><div class="l1">Negocio</div><div class="l2">Agenda, fila, cobros, comprobantes, caja y clientes</div></div><span class="chev">›</span></button>
+<button class="item" ${act('introRol','pro')}><div class="body"><div class="l1">Profesional</div><div class="l2">Su día, sus comisiones y sus calificaciones</div></div><span class="chev">›</span></button>
+<button class="item" ${act('introRol','somar')}><div class="body"><div class="l1">Somar</div><div class="l2">Aprobación de negocios y reseñas reportadas</div></div><span class="chev">›</span></button>
+</div>
+<button class="btn ink full" ${act('registrarme')}>Quiero Somar Turno para mi negocio</button>`);})();
+setInterval(()=>{if(!SH&&!document.activeElement?.matches('input,textarea,select'))render();},60000);
+</script>
+
+</body>
+</html>
