@@ -9,7 +9,7 @@ const hoy = () => iso(new Date());
 const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
 const h2m = h => { const [a, b] = h.split(':').map(Number); return a * 60 + b; };
 const m2h = m => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
-const h12 = h => { const m = h2m(h); let H = Math.floor(m / 60); const M = m % 60, ap = H < 12 ? 'a. m.' : 'p. m.'; H = H % 12 || 12; return H + ':' + pad(M) + ' ' + ap; };
+const h12 = h => { const m = h2m(h); let H = Math.floor(m / 60); const M = m % 60, ap = H < 12 ? 'a.\u00a0m.' : 'p.\u00a0m.'; H = H % 12 || 12; return H + ':' + pad(M) + ' ' + ap; };
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 const DIAS_L = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
